@@ -96,10 +96,21 @@ A modern, customizable checkout solution for Swell.is stores. This template prov
 
 ### Swell Dashboard Setup
 
-1. Go to **Settings → Payments** in your Swell dashboard
-2. Add a **Custom** payment method
-3. Set the payment method name (e.g., "Custom Checkout")
-4. Configure your preferred payment gateways
+1. **Configure Payment Methods**
+   - Go to **Settings → Payments** in your Swell dashboard
+   - Add a **Custom** payment method for each gateway you want to support
+   - Set unique payment method names (e.g., "stripe", "paypal", "custom")
+   - These names must match the `method` values used in your checkout
+
+2. **Payment Gateway Configuration**
+   - For Stripe: Add your Stripe keys in the Stripe payment method settings
+   - For PayPal: Configure PayPal credentials
+   - For Custom: Set up webhook endpoints for payment processing
+
+3. **Webhook Setup** (for custom payments)
+   - Configure webhooks for `order.refunded` events
+   - Set your webhook endpoint URL to handle refunds
+   - Test webhook delivery in your Swell dashboard
 
 ### Checkout URL Configuration
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Cart, Order } from '@/types'
+import { Cart, Order, PaymentInfo } from '@/types'
 import OrderSummary from './OrderSummary'
 
 interface OrderReviewProps {
   cart: Cart
+  paymentMethod?: PaymentInfo | null
   onSubmit: () => Promise<Order>
   onPrev: () => void
   loading?: boolean
@@ -11,6 +12,7 @@ interface OrderReviewProps {
 
 const OrderReview: React.FC<OrderReviewProps> = ({
   cart,
+  paymentMethod,
   onSubmit,
   onPrev,
   loading = false
@@ -108,11 +110,11 @@ const OrderReview: React.FC<OrderReviewProps> = ({
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <h4 className="font-medium mb-2">Payment Method</h4>
-              {cart.payment && (
+              {paymentMethod && (
                 <div className="text-sm text-gray-600">
-                  <p className="capitalize">{cart.payment.method}</p>
-                  {cart.payment.card && (
-                    <p>**** **** **** {cart.payment.card.last4}</p>
+                  <p className="capitalize">{paymentMethod.method}</p>
+                  {paymentMethod.card && (
+                    <p>**** **** **** {paymentMethod.card.last4}</p>
                   )}
                 </div>
               )}

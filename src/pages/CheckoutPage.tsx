@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useCart } from '@/hooks/useCart'
 import { useCheckoutSteps } from '@/hooks/useCheckoutSteps'
@@ -16,6 +16,9 @@ const CheckoutPage: React.FC = () => {
   
   // Get checkout ID from URL params or query string
   const finalCheckoutId = checkoutId || searchParams.get('checkout_id') || searchParams.get('id')
+  
+  // Store payment method selection locally
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentInfo | null>(null)
   
   const { cart, loading, updating, submitting, error: cartError, updateCart, submitOrder, loadCartByCheckoutId, fetchCart } = useCart()
   const { steps, currentStep, goToStep, nextStep, prevStep } = useCheckoutSteps(cart)
@@ -40,10 +43,27 @@ const CheckoutPage: React.FC = () => {
   }
 
   const handlePaymentSubmit = async (data: PaymentInfo) => {
-    await updateCart({ 
-      billing: { ...cart?.billing, method: data.method },
-      payment: data 
-    })
+    // Store payment method locally for display in review
+    setSelectedPaymentMethod(data)
+    
+    // Update cart with billing method and optional metadata
+    // Following Swell's recommended pattern for custom payments
+    const updateData: any = { 
+      billing: { ...cart?.billing, method: data.method }
+    }
+    
+    // Add custom metadata if needed for payment processing
+    if (data.method === 'custom' || data.method === 'stripe') {
+      updateData.metadata = {
+        ...cart?.metadata,
+        payment_method_details: {
+          type: data.method,
+          gateway: data.gateway || data.method
+        }
+      }
+    }
+    
+    await updateCart(updateData)
   }
 
   const handleOrderSubmit = async () => {
@@ -130,6 +150,7 @@ const CheckoutPage: React.FC = () => {
               {currentStep === 'review' && (
                 <OrderReview
                   cart={cart}
+                  paymentMethod={selectedPaymentMethod}
                   onSubmit={handleOrderSubmit}
                   onPrev={prevStep}
                   loading={submitting}
