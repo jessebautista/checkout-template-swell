@@ -17,15 +17,19 @@ const CheckoutPage: React.FC = () => {
   // Get checkout ID from URL params or query string
   const finalCheckoutId = checkoutId || searchParams.get('checkout_id') || searchParams.get('id')
   
-  const { cart, loading: cartLoading, error: cartError, updateCart, submitOrder, loadCartByCheckoutId } = useCart()
+  const { cart, loading: cartLoading, error: cartError, updateCart, submitOrder, loadCartByCheckoutId, fetchCart } = useCart()
   const { steps, currentStep, goToStep, nextStep, prevStep } = useCheckoutSteps(cart)
 
-  // Load cart when checkout ID is available
+  // Load cart when component mounts
   useEffect(() => {
-    if (finalCheckoutId && loadCartByCheckoutId) {
+    if (finalCheckoutId) {
+      // If we have a checkout ID, load that specific cart
       loadCartByCheckoutId(finalCheckoutId)
+    } else {
+      // Otherwise, load the current cart
+      fetchCart()
     }
-  }, [finalCheckoutId, loadCartByCheckoutId])
+  }, [finalCheckoutId, loadCartByCheckoutId, fetchCart])
 
   const handleCustomerInfoSubmit = async (data: BillingAddress) => {
     await updateCart({ billing: data })

@@ -4,7 +4,7 @@ import { Cart } from '@/types'
 
 export const useCart = () => {
   const [cart, setCart] = useState<Cart | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchCart = async () => {
@@ -78,9 +78,10 @@ export const useCart = () => {
     }
   }
 
-  useEffect(() => {
-    fetchCart()
-  }, [])
+  // Don't auto-fetch cart on mount - let the component decide
+  // useEffect(() => {
+  //   fetchCart()
+  // }, [])
 
   return {
     cart,
