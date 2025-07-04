@@ -111,7 +111,7 @@ export const useCart = () => {
     }
   }
 
-  const submitOrder = async (customerEmail?: string) => {
+  const submitOrder = async (customerEmail?: string, paymentInfo?: any) => {
     try {
       setSubmitting(true)
       
@@ -123,6 +123,7 @@ export const useCart = () => {
         items: currentCart?.items?.length,
         billing: !!currentCart?.billing,
         shipping: !!currentCart?.shipping,
+        payment_method: currentCart?.billing?.method,
         email: customerEmail || currentCart?.billing?.email
       })
       
@@ -169,6 +170,34 @@ export const useCart = () => {
           console.log('Current account status:', currentAccount)
         }
       }
+
+      // Handle payment setup if needed
+      if (paymentInfo && paymentInfo.method === 'stripe' && paymentInfo.card) {
+        console.log('Setting up Stripe payment...')
+        try {
+          // Update cart with payment details for order submission
+          const cartUpdate = {
+            billing: {
+              ...currentCart?.billing,
+              method: paymentInfo.method
+            },
+            // Add payment details separately 
+            payment: {
+              method: paymentInfo.method,
+              gateway: paymentInfo.gateway || paymentInfo.method,
+              card: paymentInfo.card
+            }
+          }
+          
+          console.log('Updating cart with payment info:', cartUpdate)
+          await swell.cart.update(cartUpdate)
+          console.log('Payment details updated in cart')
+        } catch (paymentError) {
+          console.error('Payment setup error:', paymentError)
+          console.error('Payment error details:', paymentError.message)
+          // Continue with order submission anyway
+        }
+      }
       
       console.log('Final cart check before order submission:')
       const finalCart = await swell.cart.get()
@@ -177,7 +206,8 @@ export const useCart = () => {
         account_id: finalCart?.account_id,
         has_items: finalCart?.items?.length > 0,
         has_billing: !!finalCart?.billing,
-        has_shipping: !!finalCart?.shipping
+        has_shipping: !!finalCart?.shipping,
+        billing_method: finalCart?.billing?.method
       })
       
       console.log('Submitting order...')
@@ -191,8 +221,19 @@ export const useCart = () => {
         status: order.status,
         total: order.total,
         paid: order.paid,
-        payment_balance: order.payment_balance
+        payment_balance: order.payment_balance,
+        payment_status: order.payment_status
       })
+
+      // Check payment status
+      if (order) {
+        console.log('Order payment status:', {
+          paid: order.paid,
+          payment_status: order.payment_status,
+          payment_balance: order.payment_balance,
+          total: order.total
+        })
+      }
       
       return order
     } catch (err: any) {

@@ -37,12 +37,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         gateway: paymentMethod
       }
 
-      if (paymentMethod === 'stripe') {
+      if (paymentMethod === 'stripe' && cardData.number) {
+        // For demo purposes, we'll use test card data
+        // In production, you'd use Stripe Elements for secure tokenization
         paymentData.card = {
-          token: 'tok_visa',
-          last4: cardData.number.slice(-4),
-          exp_month: parseInt(cardData.exp_month),
-          exp_year: parseInt(cardData.exp_year),
+          token: 'tok_visa', // Test token
+          last4: cardData.number.slice(-4) || '4242',
+          exp_month: parseInt(cardData.exp_month) || 12,
+          exp_year: parseInt(cardData.exp_year) || 25,
           brand: 'visa'
         }
       }

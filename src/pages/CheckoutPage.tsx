@@ -116,7 +116,7 @@ const CheckoutPage: React.FC = () => {
   }
 
   const handleOrderSubmit = async () => {
-    return await submitOrder(customerEmail)
+    return await submitOrder(customerEmail, selectedPaymentMethod)
   }
 
   if (loading && !cart) {
