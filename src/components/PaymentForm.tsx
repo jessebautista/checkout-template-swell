@@ -24,6 +24,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [cartReady, setCartReady] = useState(false)
   const [initializingElements, setInitializingElements] = useState(false)
+  const [elementKey, setElementKey] = useState(0) // Key for forcing remount
   const cardElementRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(false)
   const elementsInitializedRef = useRef(false) // Track if elements have been initialized
@@ -61,7 +62,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   // Initialize Stripe Elements when cart is ready and payment method is stripe
   useEffect(() => {
     if (paymentMethod === 'stripe' && cartReady && !elementsInitializedRef.current && !initializingElements) {
-      initializeStripeElements()
+      // Add a delay to ensure DOM is stable
+      const timer = setTimeout(() => {
+        if (mountedRef.current) {
+          initializeStripeElements()
+        }
+      }, 100)
+      
+      return () => clearTimeout(timer)
     }
   }, [paymentMethod, cartReady])
 
@@ -78,6 +86,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setInitializingElements(false)
     elementsInitializedRef.current = false
     swellElementsRef.current = null
+    // Force remount by changing key
+    setElementKey(prev => prev + 1)
   }
 
   const initializeStripeElements = async () => {
@@ -104,12 +114,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         return
       }
 
-      // Clear any existing content in the container
-      cardElementRef.current.innerHTML = ''
-      
-      // Use a simple, static ID that Swell expects (without #)
-      const elementId = 'swell-card-element'
+      // Generate a unique ID to avoid conflicts
+      const elementId = `swell-card-element-${Date.now()}`
       cardElementRef.current.id = elementId
+      
+      // Clear any existing content safely
+      try {
+        while (cardElementRef.current.firstChild) {
+          cardElementRef.current.removeChild(cardElementRef.current.firstChild)
+        }
+      } catch (err) {
+        // Ignore cleanup errors
+        console.log('Container cleared')
+      }
       
       // Create Stripe Elements using official Swell API
       const elements = await swell.payment.createElements({
@@ -144,15 +161,15 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               setElementsCreated(true)
             }
           },
-          onError: (error) => {
+          onError: (error: any) => {
             console.error('Stripe Elements error:', error)
             if (mountedRef.current) {
-              setError(error.message || 'Payment form error')
+              setError(error?.message || 'Payment form error')
             }
           },
-          onChange: (event) => {
+          onChange: (event: any) => {
             if (mountedRef.current) {
-              if (event.error) {
+              if (event?.error) {
                 setError(event.error.message)
               } else {
                 setError(null)
@@ -178,14 +195,26 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     }
   }
 
-  // Track component mount state
+  // Track component mount state and handle cleanup
   useEffect(() => {
     mountedRef.current = true
+    
     return () => {
       mountedRef.current = false
-      // Clean up refs on unmount
+      
+      // Cleanup: Reset all refs and states
       elementsInitializedRef.current = false
       swellElementsRef.current = null
+      
+      // Safe DOM cleanup
+      try {
+        if (cardElementRef.current) {
+          // Let React handle DOM cleanup naturally
+          cardElementRef.current.id = ''
+        }
+      } catch (err) {
+        // Ignore cleanup errors
+      }
     }
   }, [])
 
@@ -216,9 +245,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         
         // Use the official Swell tokenize method
         // According to docs, this automatically updates the cart with payment details
-        const result = await swell.payment.tokenize()
+        const result: any = await swell.payment.tokenize()
         
-        if (result.error) {
+        if (result?.error) {
           throw new Error(result.error.message || 'Payment processing failed')
         }
         
@@ -326,6 +355,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             
             {/* Stripe Elements Container */}
             <div 
+              key={elementKey} // Force remount when key changes
               ref={cardElementRef}
               className="form-input min-h-[48px] transition-colors border-gray-300"
               style={{ 
