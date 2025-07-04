@@ -221,6 +221,25 @@ await swell.cart.update({
 const order = await swell.cart.submitOrder()
 ```
 
+### Order Lifecycle
+
+Orders in Swell follow a structured lifecycle:
+
+**Order States:**
+- `pending` - Default state after submission
+- `payment_pending` - Awaiting full payment
+- `delivery_pending` - Items awaiting delivery  
+- `complete` - All items received by customer
+- `hold` - Order paused
+- `canceled` - Order terminated
+
+**Key Features:**
+- Guest and account-based purchases supported
+- Automatic payment processing and balance tracking
+- Real-time shipping rate calculations
+- Partial/full cancellation and return support
+- Webhook notifications for status changes
+
 ### Custom Payment Processing
 
 For custom payment methods, the template supports:
@@ -228,6 +247,8 @@ For custom payment methods, the template supports:
 - Authorization and capture workflows
 - Webhook integration for payment confirmations
 - Custom metadata for payment processing
+- Multiple payment method handling
+- Guest checkout with automatic account creation
 
 ## Development
 

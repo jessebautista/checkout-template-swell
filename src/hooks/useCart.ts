@@ -70,9 +70,31 @@ export const useCart = () => {
       setSubmitting(true)
       const order = await swell.cart.submitOrder()
       setError(null)
+      
+      // Log order status for debugging
+      console.log('Order submitted successfully:', {
+        id: order.id,
+        number: order.number,
+        status: order.status,
+        total: order.total,
+        paid: order.paid,
+        payment_balance: order.payment_balance
+      })
+      
       return order
-    } catch (err) {
-      setError('Failed to submit order')
+    } catch (err: any) {
+      // Enhanced error handling based on order lifecycle
+      let errorMessage = 'Failed to submit order'
+      
+      if (err.code === 'validation_error') {
+        errorMessage = `Order validation failed: ${err.message}`
+      } else if (err.code === 'payment_error') {
+        errorMessage = 'Payment processing failed. Please check your payment details.'
+      } else if (err.code === 'inventory_error') {
+        errorMessage = 'Some items are no longer available. Please review your cart.'
+      }
+      
+      setError(errorMessage)
       console.error('Order submit error:', err)
       throw err
     } finally {

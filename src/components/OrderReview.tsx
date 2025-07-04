@@ -43,7 +43,7 @@ const OrderReview: React.FC<OrderReviewProps> = ({
           </div>
           <h2 className="text-2xl font-bold text-green-800 mb-2">Order Confirmed!</h2>
           <p className="text-green-700">
-            Your order #{order.number} has been successfully placed.
+            Your order #{order.number} has been successfully placed and is currently <span className="font-semibold">{order.status || 'pending'}</span>.
           </p>
         </div>
 
@@ -65,9 +65,16 @@ const OrderReview: React.FC<OrderReviewProps> = ({
           </div>
         </div>
 
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 space-y-2">
           <p>A confirmation email has been sent to your email address.</p>
-          <p>You can track your order status in your account.</p>
+          <div className="bg-blue-50 border border-blue-200 rounded p-3">
+            <h4 className="font-medium text-blue-800 mb-1">What happens next?</h4>
+            <ul className="text-blue-700 text-xs space-y-1">
+              <li>• Your payment will be processed</li>
+              <li>• You'll receive email updates on your order status</li>
+              <li>• Shipping information will be provided once items are dispatched</li>
+            </ul>
+          </div>
         </div>
       </div>
     )
