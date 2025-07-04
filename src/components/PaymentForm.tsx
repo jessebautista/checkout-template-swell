@@ -37,11 +37,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Add a delay to ensure DOM and cart are ready
       const timer = setTimeout(() => {
         initializeStripeElements()
-      }, 300)
+      }, 500) // Increased delay for cart loading
       
       return () => {
         clearTimeout(timer)
-        // Cleanup any existing elements to prevent DOM issues
+        // Improved cleanup to prevent DOM errors
         setCardElement(null)
         setStripeElements(null)
         setTokenized(false)
@@ -50,9 +50,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         const cardContainer = document.getElementById('stripe-card-element')
         if (cardContainer) {
           try {
-            cardContainer.innerHTML = ''
+            // Only clear if there are child nodes
+            if (cardContainer.children.length > 0) {
+              cardContainer.innerHTML = ''
+            }
           } catch (err) {
-            console.log('Element cleanup completed')
+            // Ignore cleanup errors
           }
         }
       }
@@ -101,8 +104,33 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       
       console.log('Creating Stripe Elements exactly as per Swell documentation...')
       
-      // Follow the exact pattern from Swell docs
-      const elements = await swell.payment.createElements({
+      // Check Stripe configuration first
+      try {
+        const settings = await swell.settings.get()
+        console.log('Full payments configuration:', settings?.payments)
+        
+        const stripeConfig = settings?.payments?.methods?.find((m: any) => m.id === 'stripe')
+        console.log('Stripe configuration check:', {
+          found: !!stripeConfig,
+          connected: stripeConfig?.connected,
+          mode: stripeConfig?.mode,
+          useConnect: stripeConfig?.use_connect,
+          hasTestKey: !!stripeConfig?.test_publishable_key,
+          hasLiveKey: !!stripeConfig?.live_publishable_key,
+          methods: stripeConfig?.methods
+        })
+        
+        // Also check what payment methods are available on the cart
+        const paymentMethods = await swell.payment.getMethods()
+        console.log('Available payment methods:', paymentMethods)
+        
+      } catch (settingsError) {
+        console.log('Could not check Stripe settings:', settingsError)
+      }
+      
+      // Try the createElements call and log detailed response
+      console.log('Calling swell.payment.createElements...')
+      const elementsResponse = await swell.payment.createElements({
         card: {
           elementId: 'stripe-card-element', // No # symbol as per docs
           options: {
@@ -127,12 +155,52 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }
       })
       
+      console.log('createElements response type:', typeof elementsResponse)
+      console.log('createElements response value:', elementsResponse)
+      console.log('createElements response keys:', elementsResponse ? Object.keys(elementsResponse) : 'null/undefined')
+      
+      const elements = elementsResponse
+      
       if (elements) {
         setStripeElements(elements)
         setCardElement(elements) // Store the entire elements object
         console.log('Stripe Elements created successfully')
       } else {
-        throw new Error('createElements returned null/undefined')
+        console.log('createElements returned null, trying alternative approach...')
+        
+        // Try simpler configuration for Stripe Connect stores
+        const alternativeElements = await swell.payment.createElements({
+          card: {
+            elementId: 'stripe-card-element'
+          }
+        })
+        
+        console.log('Alternative createElements response:', alternativeElements)
+        
+        if (alternativeElements) {
+          setStripeElements(alternativeElements)
+          setCardElement(alternativeElements)
+          console.log('Alternative Stripe Elements created successfully')
+        } else {
+          // Try with different method - check if we need to specify gateway
+          console.log('Trying with explicit gateway specification...')
+          const gatewayElements = await swell.payment.createElements({
+            gateway: 'stripe',
+            card: {
+              elementId: 'stripe-card-element'
+            }
+          })
+          
+          console.log('Gateway-specific createElements response:', gatewayElements)
+          
+          if (gatewayElements) {
+            setStripeElements(gatewayElements)
+            setCardElement(gatewayElements)
+            console.log('Gateway-specific Stripe Elements created successfully')
+          } else {
+            throw new Error('All createElements attempts returned null/undefined - Stripe may not be properly configured')
+          }
+        }
       }
     } catch (error: any) {
       console.error('Stripe Elements initialization failed:', error)
