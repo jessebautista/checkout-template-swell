@@ -35,11 +35,37 @@ const CheckoutPage: React.FC = () => {
   }, [finalCheckoutId]) // Remove dependencies to prevent infinite loops
 
   const handleCustomerInfoSubmit = async (data: BillingAddress) => {
-    await updateCart({ billing: data })
+    // Only send allowed billing fields, exclude restricted fields
+    const allowedBillingFields = {
+      first_name: data.first_name,
+      last_name: data.last_name,
+      address1: data.address1,
+      address2: data.address2,
+      city: data.city,
+      state: data.state,
+      zip: data.zip,
+      country: data.country,
+      phone: data.phone
+    }
+    
+    await updateCart({ billing: allowedBillingFields })
   }
 
   const handleShippingSubmit = async (data: ShippingAddress) => {
-    await updateCart({ shipping: data })
+    // Only send allowed shipping fields, exclude restricted fields like account_card_id
+    const allowedShippingFields = {
+      first_name: data.first_name,
+      last_name: data.last_name,
+      address1: data.address1,
+      address2: data.address2,
+      city: data.city,
+      state: data.state,
+      zip: data.zip,
+      country: data.country,
+      phone: data.phone
+    }
+    
+    await updateCart({ shipping: allowedShippingFields })
   }
 
   const handlePaymentSubmit = async (data: PaymentInfo) => {
@@ -49,7 +75,18 @@ const CheckoutPage: React.FC = () => {
     // Update cart with billing method and optional metadata
     // Following Swell's recommended pattern for custom payments
     const updateData: any = { 
-      billing: { ...cart?.billing, method: data.method }
+      billing: {
+        first_name: cart?.billing?.first_name,
+        last_name: cart?.billing?.last_name,
+        address1: cart?.billing?.address1,
+        address2: cart?.billing?.address2,
+        city: cart?.billing?.city,
+        state: cart?.billing?.state,
+        zip: cart?.billing?.zip,
+        country: cart?.billing?.country,
+        phone: cart?.billing?.phone,
+        method: data.method
+      }
     }
     
     // Add custom metadata if needed for payment processing
