@@ -140,6 +140,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           throw new Error('Please enter the name on the card.')
         }
 
+        console.log('Payment submission state:', {
+          useStripeElements,
+          elementsCreated,
+          paymentMethod
+        })
+
         if (useStripeElements && elementsCreated) {
           console.log('Tokenizing with Stripe Elements...')
           
@@ -162,15 +168,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           paymentData.tokenized = true
           
         } else {
-          console.log('Using manual card tokenization...')
+          console.log('Using manual card tokenization...', {
+            useStripeElements,
+            elementsCreated,
+            reason: !useStripeElements ? 'Stripe Elements disabled' : 'Elements not created'
+          })
           
-          // Validate manual form fields
+          // Validate manual form fields only when NOT using Stripe Elements
           if (!cardData.number || !cardData.exp_month || !cardData.exp_year || !cardData.cvc) {
             throw new Error('Please fill in all card details.')
           }
           
           // Use manual card tokenization as documented
-          const tokenResponse = await swell.card.createToken({
+          const tokenResponse: any = await swell.card.createToken({
             number: cardData.number.replace(/\s/g, ''), // Remove spaces
             exp_month: parseInt(cardData.exp_month),
             exp_year: parseInt(cardData.exp_year),
@@ -180,7 +190,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             }
           })
           
-          if (tokenResponse.error) {
+          if (tokenResponse?.error) {
             throw new Error(tokenResponse.error.message || 'Card tokenization failed')
           }
           
