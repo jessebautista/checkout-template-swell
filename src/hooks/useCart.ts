@@ -65,9 +65,48 @@ export const useCart = () => {
     }
   }
 
+  const createGuestAccount = async (email: string, firstName?: string, lastName?: string) => {
+    try {
+      const guestAccount = await swell.account.create({
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
+        email_optin: false
+        // No password = guest account
+      })
+      
+      console.log('Guest account created:', guestAccount.id)
+      return guestAccount
+    } catch (error: any) {
+      console.error('Failed to create guest account:', error)
+      // If it's a duplicate email error, that's ok
+      if (error.code !== 'duplicate_email') {
+        throw error
+      }
+      return null
+    }
+  }
+
   const submitOrder = async () => {
     try {
       setSubmitting(true)
+      
+      // Get current cart to check account status
+      const currentCart = await swell.cart.get()
+      
+      // Create guest account if needed
+      if (currentCart?.billing?.email && !currentCart?.account_id) {
+        await createGuestAccount(
+          currentCart.billing.email,
+          currentCart.billing.first_name,
+          currentCart.billing.last_name
+        )
+        
+        // Refresh cart to get the account_id
+        const refreshedCart = await swell.cart.get()
+        setCart(refreshedCart)
+      }
+      
       const order = await swell.cart.submitOrder()
       setError(null)
       

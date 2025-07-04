@@ -106,19 +106,6 @@ const CheckoutPage: React.FC = () => {
   }
 
   const handleOrderSubmit = async () => {
-    // Ensure we have the required fields for order submission
-    // For guest checkout, we need to make sure account info is set
-    if (cart?.billing?.email && !cart?.account_id) {
-      // Set guest account info before submitting order
-      await updateCart({
-        account: {
-          email: cart.billing.email,
-          email_optin: false,
-          guest: true
-        }
-      })
-    }
-    
     return await submitOrder()
   }
 
