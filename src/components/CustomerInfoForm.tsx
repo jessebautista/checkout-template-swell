@@ -17,6 +17,7 @@ const CustomerInfoForm: React.FC<CustomerInfoFormProps> = ({
   const [formData, setFormData] = useState<BillingAddress>({
     first_name: initialData?.first_name || '',
     last_name: initialData?.last_name || '',
+    email: initialData?.email || '',
     address1: initialData?.address1 || '',
     address2: initialData?.address2 || '',
     city: initialData?.city || '',
@@ -43,6 +44,11 @@ const CustomerInfoForm: React.FC<CustomerInfoFormProps> = ({
     }
     if (!formData.last_name.trim()) {
       newErrors.push({ field: 'last_name', message: 'Last name is required' })
+    }
+    if (!formData.email.trim()) {
+      newErrors.push({ field: 'email', message: 'Email is required' })
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.push({ field: 'email', message: 'Email is invalid' })
     }
     if (!formData.address1.trim()) {
       newErrors.push({ field: 'address1', message: 'Address is required' })
@@ -116,6 +122,24 @@ const CustomerInfoForm: React.FC<CustomerInfoFormProps> = ({
             <p className="mt-1 text-sm text-red-600">{getFieldError('last_name')}</p>
           )}
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="email" className="form-label">
+          Email Address *
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          className={`form-input ${getFieldError('email') ? 'border-red-500' : ''}`}
+          required
+        />
+        {getFieldError('email') && (
+          <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
+        )}
       </div>
 
       <div>

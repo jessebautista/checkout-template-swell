@@ -37,6 +37,7 @@ export interface BillingAddress {
   zip: string
   country: string
   phone?: string
+  email?: string
 }
 
 export interface ShippingAddress extends BillingAddress {

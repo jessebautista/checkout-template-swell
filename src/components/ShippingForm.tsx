@@ -34,13 +34,30 @@ const ShippingForm: React.FC<ShippingFormProps> = ({
 
   useEffect(() => {
     if (sameAsBilling && billingAddress) {
+      // Only copy allowed fields from billing address
       setFormData({
-        ...billingAddress,
+        first_name: billingAddress.first_name || '',
+        last_name: billingAddress.last_name || '',
+        address1: billingAddress.address1 || '',
+        address2: billingAddress.address2 || '',
+        city: billingAddress.city || '',
+        state: billingAddress.state || '',
+        zip: billingAddress.zip || '',
+        country: billingAddress.country || 'US',
+        phone: billingAddress.phone || '',
         same_as_billing: true
       })
     } else if (!sameAsBilling) {
       setFormData(prev => ({
-        ...prev,
+        first_name: prev.first_name,
+        last_name: prev.last_name,
+        address1: prev.address1,
+        address2: prev.address2,
+        city: prev.city,
+        state: prev.state,
+        zip: prev.zip,
+        country: prev.country,
+        phone: prev.phone,
         same_as_billing: false
       }))
     }

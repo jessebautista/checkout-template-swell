@@ -39,6 +39,7 @@ const CheckoutPage: React.FC = () => {
     const allowedBillingFields = {
       first_name: data.first_name,
       last_name: data.last_name,
+      email: data.email,
       address1: data.address1,
       address2: data.address2,
       city: data.city,
@@ -78,6 +79,7 @@ const CheckoutPage: React.FC = () => {
       billing: {
         first_name: cart?.billing?.first_name,
         last_name: cart?.billing?.last_name,
+        email: cart?.billing?.email,
         address1: cart?.billing?.address1,
         address2: cart?.billing?.address2,
         city: cart?.billing?.city,
@@ -104,6 +106,19 @@ const CheckoutPage: React.FC = () => {
   }
 
   const handleOrderSubmit = async () => {
+    // Ensure we have the required fields for order submission
+    // For guest checkout, we need to make sure account info is set
+    if (cart?.billing?.email && !cart?.account_id) {
+      // Set guest account info before submitting order
+      await updateCart({
+        account: {
+          email: cart.billing.email,
+          email_optin: false,
+          guest: true
+        }
+      })
+    }
+    
     return await submitOrder()
   }
 
