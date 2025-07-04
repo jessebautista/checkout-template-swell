@@ -90,7 +90,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Create Stripe Elements using official Swell API
       await swell.payment.createElements({
         card: {
-          elementId: '#card-element', // Must match the DOM element ID
+          elementId: 'card-element', // Must match the DOM element ID
           options: {
             style: {
               base: {
