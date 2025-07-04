@@ -28,20 +28,40 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [useStripeElements, setUseStripeElements] = useState(true)
   const [currentCart, setCurrentCart] = useState<any>(null)
 
+  // DEBUG: Log button state
+  const isButtonDisabled = loading || 
+    processing || 
+    (paymentMethod === 'stripe' && useStripeElements && (!elementsCreated || !cartReady)) ||
+    !!error
+
+  console.log('DEBUG: Button state', {
+    loading,
+    processing,
+    paymentMethod,
+    useStripeElements,
+    elementsCreated,
+    cartReady,
+    error,
+    isButtonDisabled
+  })
+
   // Ensure cart is ready before creating elements
   useEffect(() => {
     const ensureCartReady = async () => {
       try {
+        console.log('DEBUG: Checking cart...')
         let cart = await swell.cart.get()
+        
+        console.log('DEBUG: Cart retrieved:', cart)
         
         // If no cart or cart is empty, we need to add something to make Stripe Elements work
         if (!cart || !cart.items || cart.items.length === 0) {
-          console.log('Cart empty, ensuring cart has items for Stripe Elements...')
+          console.log('DEBUG: Cart empty, ensuring cart has items for Stripe Elements...')
           setError('Cart must have items before processing payment')
           return
         }
         
-        console.log('Cart ready:', {
+        console.log('DEBUG: Cart ready:', {
           id: cart.id,
           itemCount: cart.items?.length,
           total: cart.grand_total
@@ -50,7 +70,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setCurrentCart(cart)
         setCartReady(true)
       } catch (err) {
-        console.error('Error checking cart:', err)
+        console.error('DEBUG: Error checking cart:', err)
         setError('Error initializing payment form')
       }
     }
@@ -60,6 +80,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   // Initialize Stripe Elements when cart is ready and payment method is stripe
   useEffect(() => {
+    console.log('DEBUG: Stripe Elements effect triggered', {
+      paymentMethod,
+      cartReady,
+      useStripeElements,
+      elementsCreated
+    })
+    
     if (paymentMethod === 'stripe' && cartReady && useStripeElements && !elementsCreated) {
       initializeStripeElements()
     }
@@ -68,7 +95,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const initializeStripeElements = async () => {
     try {
       setError(null)
-      console.log('Creating Stripe Elements...')
+      console.log('DEBUG: Creating Stripe Elements...')
       
       // Create Stripe Elements using official Swell API pattern from documentation
       await swell.payment.createElements({
@@ -92,6 +119,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             }
           },
           onChange: (event: any) => {
+            console.log('DEBUG: Stripe Elements onChange:', event)
             if (event?.error) {
               setError(event.error.message)
             } else {
@@ -99,11 +127,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             }
           },
           onSuccess: () => {
-            console.log('Stripe Elements ready')
+            console.log('DEBUG: Stripe Elements ready')
             setElementsCreated(true)
           },
           onError: (error: any) => {
-            console.error('Stripe Elements error:', error)
+            console.error('DEBUG: Stripe Elements error:', error)
             setError(error?.message || 'Payment form error')
             // Fall back to manual form
             setUseStripeElements(false)
@@ -111,45 +139,57 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }
       })
       
-      console.log('Stripe Elements created successfully')
+      console.log('DEBUG: Stripe Elements created successfully')
       
     } catch (error: any) {
-      console.error('Failed to create Stripe Elements:', error)
+      console.error('DEBUG: Failed to create Stripe Elements:', error)
       setError(null) // Clear error and fall back to manual form
       setUseStripeElements(false)
-      console.log('Falling back to manual card entry form')
+      console.log('DEBUG: Falling back to manual card entry form')
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('DEBUG: handleSubmit called!')
+    console.log('DEBUG: Event:', e)
+    
     e.preventDefault()
-    console.log('Form submitted!')
+    console.log('DEBUG: Form submitted!')
     
     if (processing) {
-      console.log('Already processing, returning')
+      console.log('DEBUG: Already processing, returning')
       return
     }
+    
+    // Additional validation logging
+    console.log('DEBUG: Form validation state:', {
+      paymentMethod,
+      cardName: cardData.name,
+      useStripeElements,
+      elementsCreated,
+      cartReady
+    })
     
     try {
       setProcessing(true)
       setError(null)
-      console.log('Starting payment processing...')
+      console.log('DEBUG: Starting payment processing...')
 
-      console.log('Processing payment with method:', paymentMethod)
+      console.log('DEBUG: Processing payment with method:', paymentMethod)
 
       if (paymentMethod === 'stripe') {
         if (!cardData.name.trim()) {
           throw new Error('Please enter the name on the card.')
         }
 
-        console.log('Payment submission state:', {
+        console.log('DEBUG: Payment submission state:', {
           useStripeElements,
           elementsCreated,
           paymentMethod
         })
 
         if (useStripeElements && elementsCreated) {
-          console.log('Tokenizing with Stripe Elements...')
+          console.log('DEBUG: Tokenizing with Stripe Elements...')
           
           // Use Stripe Elements tokenization pattern from docs
           // Tokenization automatically updates the cart billing
@@ -157,12 +197,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             swell.payment.tokenize({
               card: {
                 onSuccess: async () => {
-                  console.log('Stripe Elements tokenization successful')
-                  console.log('Cart billing automatically updated by tokenization')
+                  console.log('DEBUG: Stripe Elements tokenization successful')
+                  console.log('DEBUG: Cart billing automatically updated by tokenization')
                   resolve()
                 },
                 onError: (err: any) => {
-                  console.error('Stripe Elements tokenization error:', err)
+                  console.error('DEBUG: Stripe Elements tokenization error:', err)
                   reject(new Error(err?.message || 'Payment tokenization failed'))
                 }
               }
@@ -170,7 +210,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           })
           
         } else {
-          console.log('Using manual card tokenization...')
+          console.log('DEBUG: Using manual card tokenization...')
           
           // Validate manual form fields only when NOT using Stripe Elements
           if (!cardData.number || !cardData.exp_month || !cardData.exp_year || !cardData.cvc) {
@@ -192,7 +232,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             throw new Error(tokenResponse.error.message || 'Card tokenization failed')
           }
           
-          console.log('Manual tokenization successful')
+          console.log('DEBUG: Manual tokenization successful')
           
           // For manual tokenization, we need to update the cart with the token
           await swell.cart.update({
@@ -202,7 +242,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             }
           })
           
-          console.log('Cart updated with manual token')
+          console.log('DEBUG: Cart updated with manual token')
         }
         
       } else {
@@ -213,10 +253,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             method: paymentMethod
           }
         })
-        console.log('Cart updated with payment method:', paymentMethod)
+        console.log('DEBUG: Cart updated with payment method:', paymentMethod)
       }
 
-      console.log('Payment tokenization complete, submitting order...')
+      console.log('DEBUG: Payment tokenization complete, submitting order...')
       
       // Submit the order after successful tokenization
       // According to docs, tokenization automatically updates cart billing
@@ -226,7 +266,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         throw new Error('Order submission failed - no order returned')
       }
       
-      console.log('Order submitted successfully:', {
+      console.log('DEBUG: Order submitted successfully:', {
         id: order.id,
         number: order.number,
         status: order.status,
@@ -238,11 +278,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       onOrderComplete(order)
       
     } catch (error: any) {
-      console.error('Payment submission failed:', error)
+      console.error('DEBUG: Payment submission failed:', error)
       setError(error.message || 'Payment failed. Please try again.')
     } finally {
       setProcessing(false)
     }
+  }
+
+  // DEBUG: Add click handler to see if button clicks are registered
+  const handleButtonClick = (e: React.MouseEvent) => {
+    console.log('DEBUG: Button clicked!', e)
+    console.log('DEBUG: Button disabled state:', isButtonDisabled)
   }
 
   const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -459,6 +505,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         </div>
       )}
 
+      {/* DEBUG INFO */}
+      <div className="p-3 bg-gray-100 border rounded-lg text-xs">
+        <p><strong>Debug Info:</strong></p>
+        <p>Button disabled: {isButtonDisabled ? 'Yes' : 'No'}</p>
+        <p>Cart ready: {cartReady ? 'Yes' : 'No'}</p>
+        <p>Elements created: {elementsCreated ? 'Yes' : 'No'}</p>
+        <p>Processing: {processing ? 'Yes' : 'No'}</p>
+        <p>Error: {error || 'None'}</p>
+      </div>
+
       <div className="flex justify-between">
         <button
           type="button"
@@ -469,12 +525,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         </button>
         <button
           type="submit"
-          disabled={
-            loading || 
-            processing || 
-            (paymentMethod === 'stripe' && useStripeElements && (!elementsCreated || !cartReady)) ||
-            !!error
-          }
+          onClick={handleButtonClick}
+          disabled={isButtonDisabled}
           className="btn btn-primary"
         >
           {processing ? (
