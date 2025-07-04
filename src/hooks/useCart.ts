@@ -77,11 +77,16 @@ export const useCart = () => {
         // No password = guest account
       })
       
-      console.log('Guest account created successfully:', {
-        id: guestAccount.id,
-        email: guestAccount.email,
-        guest: guestAccount.guest
-      })
+      if (guestAccount) {
+        console.log('Guest account created successfully:', {
+          id: guestAccount.id,
+          email: guestAccount.email,
+          guest: guestAccount.guest
+        })
+      } else {
+        console.log('Guest account creation returned null/undefined')
+      }
+      
       return guestAccount
     } catch (error: any) {
       console.error('Failed to create guest account:', error)

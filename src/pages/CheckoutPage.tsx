@@ -157,60 +157,152 @@ const CheckoutPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Checkout</h1>
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+              Secure Checkout
+            </h1>
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span>SSL Encrypted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Progress Steps */}
+        <div className="mb-12">
           <CheckoutSteps steps={steps} onStepClick={goToStep} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              {currentStep === 'customer' && (
-                <CustomerInfoForm
-                  initialData={cart.billing}
-                  onSubmit={handleCustomerInfoSubmit}
-                  onNext={nextStep}
-                  loading={updating}
-                />
-              )}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+          {/* Main Content */}
+          <div className="xl:col-span-3">
+            <div className="card">
+              <div className="card-body">
+                {currentStep === 'customer' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900">Contact Information</h2>
+                    </div>
+                    <CustomerInfoForm
+                      initialData={cart.billing}
+                      onSubmit={handleCustomerInfoSubmit}
+                      onNext={nextStep}
+                      loading={updating}
+                    />
+                  </div>
+                )}
 
-              {currentStep === 'shipping' && (
-                <ShippingForm
-                  billingAddress={cart.billing}
-                  initialData={cart.shipping}
-                  onSubmit={handleShippingSubmit}
-                  onNext={nextStep}
-                  onPrev={prevStep}
-                  loading={updating}
-                />
-              )}
+                {currentStep === 'shipping' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900">Shipping Address</h2>
+                    </div>
+                    <ShippingForm
+                      billingAddress={cart.billing}
+                      initialData={cart.shipping}
+                      onSubmit={handleShippingSubmit}
+                      onNext={nextStep}
+                      onPrev={prevStep}
+                      loading={updating}
+                    />
+                  </div>
+                )}
 
-              {currentStep === 'payment' && (
-                <PaymentForm
-                  onSubmit={handlePaymentSubmit}
-                  onNext={nextStep}
-                  onPrev={prevStep}
-                  loading={updating}
-                />
-              )}
+                {currentStep === 'payment' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900">Payment Method</h2>
+                    </div>
+                    <PaymentForm
+                      onSubmit={handlePaymentSubmit}
+                      onNext={nextStep}
+                      onPrev={prevStep}
+                      loading={updating}
+                    />
+                  </div>
+                )}
 
-              {currentStep === 'review' && (
-                <OrderReview
-                  cart={cart}
-                  paymentMethod={selectedPaymentMethod}
-                  onSubmit={handleOrderSubmit}
-                  onPrev={prevStep}
-                  loading={submitting}
-                />
-              )}
+                {currentStep === 'review' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900">Review & Confirm</h2>
+                    </div>
+                    <OrderReview
+                      cart={cart}
+                      paymentMethod={selectedPaymentMethod}
+                      onSubmit={handleOrderSubmit}
+                      onPrev={prevStep}
+                      loading={submitting}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
+          {/* Order Summary Sidebar */}
+          <div className="xl:col-span-2">
+            <div className="sticky top-24">
               <OrderSummary cart={cart} />
+              
+              {/* Trust Indicators */}
+              <div className="mt-6 card">
+                <div className="card-body">
+                  <h3 className="font-semibold text-gray-900 mb-4">Secure Checkout</h3>
+                  <div className="space-y-3 text-sm text-gray-600">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span>SSL Encrypted Connection</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span>Secure Payment Processing</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span>Money Back Guarantee</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
