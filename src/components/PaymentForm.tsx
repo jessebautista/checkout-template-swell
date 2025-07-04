@@ -123,12 +123,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Form submitted!')
     
-    if (processing) return
+    if (processing) {
+      console.log('Already processing, returning')
+      return
+    }
     
     try {
       setProcessing(true)
       setError(null)
+      console.log('Starting payment processing...')
 
       const paymentData: PaymentInfo = {
         method: paymentMethod,
@@ -457,6 +462,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             !!error
           }
           className="btn btn-primary"
+          onClick={(e) => {
+            console.log('Review Order button clicked')
+            console.log('Button disabled state:', {
+              loading,
+              processing,
+              paymentMethod,
+              useStripeElements,
+              elementsCreated,
+              cartReady,
+              error,
+              isDisabled: loading || processing || (paymentMethod === 'stripe' && useStripeElements && (!elementsCreated || !cartReady)) || !!error
+            })
+          }}
         >
           {processing ? (
             <>
