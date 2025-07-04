@@ -100,7 +100,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Create Stripe Elements using official Swell API pattern from documentation
       await swell.payment.createElements({
         card: {
-          elementId: 'card-element', // Use # prefix as shown in docs
+          elementId: 'card-element',
           options: {
             style: {
               base: {
@@ -126,10 +126,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               setError(null)
             }
           },
-          onSuccess: () => {
-            console.log('DEBUG: Stripe Elements ready')
-            setElementsCreated(true)
-          },
           onError: (error: any) => {
             console.error('DEBUG: Stripe Elements error:', error)
             setError(error?.message || 'Payment form error')
@@ -140,6 +136,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       })
       
       console.log('DEBUG: Stripe Elements created successfully')
+      
+      // Since the creation was successful and we're seeing onChange events,
+      // we can safely set elementsCreated to true here
+      setElementsCreated(true)
+      console.log('DEBUG: Set elementsCreated to true')
       
     } catch (error: any) {
       console.error('DEBUG: Failed to create Stripe Elements:', error)
