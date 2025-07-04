@@ -3,15 +3,13 @@ import { PaymentInfo } from '@/types'
 import swell from '@/lib/swell'
 
 interface PaymentFormProps {
-  onSubmit: (data: PaymentInfo) => void
-  onNext: () => void
+  onOrderComplete: (order: any) => void
   onPrev: () => void
   loading?: boolean
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
-  onSubmit,
-  onNext,
+  onOrderComplete,
   onPrev,
   loading = false
 }) => {
@@ -218,10 +216,25 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         paymentData.tokenized = false
       }
 
-      console.log('Payment data prepared:', paymentData)
+      console.log('Payment data prepared, submitting order...')
       
-      await onSubmit(paymentData)
-      onNext()
+      // Submit the order directly here instead of going to review step
+      const order = await swell.cart.submitOrder()
+      
+      if (!order) {
+        throw new Error('Order submission failed - no order returned')
+      }
+      
+      console.log('Order submitted successfully:', {
+        id: order.id,
+        number: order.number,
+        status: order.status,
+        total: order.grand_total,
+        paid: order.paid
+      })
+      
+      // Call the completion handler with the order
+      onOrderComplete(order)
       
     } catch (error: any) {
       console.error('Payment submission failed:', error)
@@ -462,19 +475,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             !!error
           }
           className="btn btn-primary"
-          onClick={(e) => {
-            console.log('Review Order button clicked')
-            console.log('Button disabled state:', {
-              loading,
-              processing,
-              paymentMethod,
-              useStripeElements,
-              elementsCreated,
-              cartReady,
-              error,
-              isDisabled: loading || processing || (paymentMethod === 'stripe' && useStripeElements && (!elementsCreated || !cartReady)) || !!error
-            })
-          }}
         >
           {processing ? (
             <>
@@ -486,7 +486,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           ) : loading ? (
             'Saving...'
           ) : (
-            'Review Order'
+            'Complete Order'
           )}
         </button>
       </div>

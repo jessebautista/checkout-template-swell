@@ -4,8 +4,7 @@ import { CheckoutStep, Cart } from '@/types'
 const initialSteps: CheckoutStep[] = [
   { id: 'customer', title: 'Customer Info', completed: false, active: true },
   { id: 'shipping', title: 'Shipping', completed: false, active: false },
-  { id: 'payment', title: 'Payment', completed: false, active: false },
-  { id: 'review', title: 'Review', completed: false, active: false }
+  { id: 'payment', title: 'Payment & Order', completed: false, active: false }
 ]
 
 export const useCheckoutSteps = (cart: Cart | null) => {

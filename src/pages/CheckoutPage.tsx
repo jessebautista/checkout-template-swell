@@ -21,6 +21,8 @@ const CheckoutPage: React.FC = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentInfo | null>(null)
   // Store customer email separately (can't be updated in cart billing)
   const [customerEmail, setCustomerEmail] = useState<string>('')
+  const [orderComplete, setOrderComplete] = useState(false)
+  const [completedOrder, setCompletedOrder] = useState<any>(null)
   
   const { cart, loading, updating, submitting, error: cartError, updateCart, submitOrder, loadCartByCheckoutId, fetchCart } = useCart()
   const { steps, currentStep, goToStep, nextStep, prevStep } = useCheckoutSteps(cart)
@@ -115,8 +117,9 @@ const CheckoutPage: React.FC = () => {
     await updateCart(updateData)
   }
 
-  const handleOrderSubmit = async () => {
-    return await submitOrder(customerEmail, selectedPaymentMethod)
+  const handleOrderComplete = (order: any) => {
+    setCompletedOrder(order)
+    setOrderComplete(true)
   }
 
 
@@ -244,31 +247,66 @@ const CheckoutPage: React.FC = () => {
                       <h2 className="text-xl font-bold text-gray-900">Payment Method</h2>
                     </div>
                     <PaymentForm
-                      onSubmit={handlePaymentSubmit}
-                      onNext={nextStep}
+                      onOrderComplete={handleOrderComplete}
                       onPrev={prevStep}
-                      loading={updating}
+                      loading={updating || submitting}
                     />
                   </div>
                 )}
 
-                {currentStep === 'review' && (
+                {orderComplete && completedOrder && (
                   <div className="space-y-6">
                     <div className="flex items-center space-x-3 mb-6">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <h2 className="text-xl font-bold text-gray-900">Review & Confirm</h2>
+                      <h2 className="text-xl font-bold text-gray-900">Order Complete!</h2>
                     </div>
-                    <OrderReview
-                      cart={cart}
-                      paymentMethod={selectedPaymentMethod}
-                      onSubmit={handleOrderSubmit}
-                      onPrev={prevStep}
-                      loading={submitting}
-                    />
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-green-800 mb-2">
+                          Thank you for your order!
+                        </h3>
+                        <p className="text-green-700 mb-4">
+                          Order #{completedOrder.number || completedOrder.id}
+                        </p>
+                        <div className="bg-white rounded-lg p-4 text-left">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-600">Order ID:</span>
+                            <span className="font-medium">{completedOrder.id}</span>
+                          </div>
+                          {completedOrder.number && (
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-gray-600">Order Number:</span>
+                              <span className="font-medium">#{completedOrder.number}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-600">Status:</span>
+                            <span className="font-medium capitalize">{completedOrder.status || 'Pending'}</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-600">Total:</span>
+                            <span className="font-bold text-lg">${(completedOrder.grand_total || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Payment Status:</span>
+                            <span className={`font-medium ${
+                              completedOrder.paid ? 'text-green-600' : 'text-yellow-600'
+                            }`}>
+                              {completedOrder.paid ? 'Paid' : 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
