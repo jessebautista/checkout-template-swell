@@ -73,7 +73,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       // Create Stripe Elements using official Swell API pattern from documentation
       await swell.payment.createElements({
         card: {
-          elementId: '#card-element', // Use # prefix as shown in docs
+          elementId: 'card-element', // Use # prefix as shown in docs
           options: {
             style: {
               base: {
