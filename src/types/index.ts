@@ -15,16 +15,18 @@ export interface CartItem {
 
 export interface Cart {
   id: string
-  items: CartItem[]
-  item_quantity: number
-  sub_total: number
-  tax_total: number
-  shipping_total: number
-  grand_total: number
-  currency: string
+  items?: CartItem[]
+  item_quantity?: number
+  sub_total?: number
+  tax_total?: number
+  shipping_total?: number
+  grand_total?: number
+  currency?: string
   billing?: BillingAddress
   shipping?: ShippingAddress
   payment?: PaymentInfo
+  account_id?: string
+  metadata?: any
 }
 
 export interface BillingAddress {
@@ -46,12 +48,16 @@ export interface ShippingAddress extends BillingAddress {
 
 export interface PaymentInfo {
   method: string
+  tokenized?: boolean
   card?: {
-    token: string
-    last4: string
-    exp_month: number
-    exp_year: number
-    brand: string
+    token?: string
+    name?: string
+    last4?: string
+    exp_month?: number
+    exp_year?: number
+    brand?: string
+    number?: string
+    cvc?: string
   }
   gateway?: string
   intent?: {
@@ -63,14 +69,18 @@ export interface PaymentInfo {
 
 export interface Order {
   id: string
-  number: string
-  status: string
-  total: number
-  items: CartItem[]
-  billing: BillingAddress
-  shipping: ShippingAddress
-  payment: PaymentInfo
-  created_at: string
+  number?: string
+  status?: string
+  total?: number
+  grand_total?: number
+  paid?: boolean
+  payment_status?: string
+  payment_balance?: number
+  items?: CartItem[]
+  billing?: BillingAddress
+  shipping?: ShippingAddress
+  payment?: PaymentInfo
+  created_at?: string
 }
 
 export interface CheckoutStep {
