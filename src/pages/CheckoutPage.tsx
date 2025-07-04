@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useCart } from '@/hooks/useCart'
 import { useCheckoutSteps } from '@/hooks/useCheckoutSteps'
 import CheckoutSteps from '@/components/CheckoutSteps'
@@ -10,8 +11,21 @@ import OrderSummary from '@/components/OrderSummary'
 import { BillingAddress, ShippingAddress, PaymentInfo } from '@/types'
 
 const CheckoutPage: React.FC = () => {
-  const { cart, loading: cartLoading, error: cartError, updateCart, submitOrder } = useCart()
+  const { checkoutId } = useParams<{ checkoutId: string }>()
+  const [searchParams] = useSearchParams()
+  
+  // Get checkout ID from URL params or query string
+  const finalCheckoutId = checkoutId || searchParams.get('checkout_id') || searchParams.get('id')
+  
+  const { cart, loading: cartLoading, error: cartError, updateCart, submitOrder, loadCartByCheckoutId } = useCart()
   const { steps, currentStep, goToStep, nextStep, prevStep } = useCheckoutSteps(cart)
+
+  // Load cart when checkout ID is available
+  useEffect(() => {
+    if (finalCheckoutId && loadCartByCheckoutId) {
+      loadCartByCheckoutId(finalCheckoutId)
+    }
+  }, [finalCheckoutId, loadCartByCheckoutId])
 
   const handleCustomerInfoSubmit = async (data: BillingAddress) => {
     await updateCart({ billing: data })

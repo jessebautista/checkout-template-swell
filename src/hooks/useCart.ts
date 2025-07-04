@@ -21,6 +21,32 @@ export const useCart = () => {
     }
   }
 
+  const loadCartByCheckoutId = async (checkoutId: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // First try to set the cart by checkout ID
+      const cartData = await swell.cart.recover(checkoutId)
+      if (cartData) {
+        setCart(cartData)
+      } else {
+        // If recover doesn't work, try to get cart and set checkout ID
+        const currentCart = await swell.cart.get()
+        if (currentCart) {
+          setCart(currentCart)
+        } else {
+          throw new Error('No cart found')
+        }
+      }
+    } catch (err) {
+      setError('Failed to load checkout')
+      console.error('Checkout load error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const updateCart = async (updates: Partial<Cart>) => {
     try {
       setLoading(true)
@@ -61,6 +87,7 @@ export const useCart = () => {
     loading,
     error,
     fetchCart,
+    loadCartByCheckoutId,
     updateCart,
     submitOrder
   }

@@ -66,8 +66,9 @@ A modern, customizable checkout solution for Swell.is stores. This template prov
    
    3. **Update Swell Dashboard**
       - Go to your Swell dashboard → Settings → Checkout
-      - Set your checkout URL to: `https://your-project.vercel.app`
+      - Set your checkout URL to: `https://your-project.vercel.app/checkout/{checkout_id}`
       - Add your domain to allowed origins in API settings
+      - The `{checkout_id}` placeholder will be automatically replaced by Swell
 
 5. **Local Development (Optional)**
    ```bash
@@ -99,6 +100,20 @@ A modern, customizable checkout solution for Swell.is stores. This template prov
 2. Add a **Custom** payment method
 3. Set the payment method name (e.g., "Custom Checkout")
 4. Configure your preferred payment gateways
+
+### Checkout URL Configuration
+
+In your Swell dashboard, set your checkout URL to:
+```
+https://your-project.vercel.app/checkout/{checkout_id}
+```
+
+**Supported URL formats:**
+- `/checkout/{checkout_id}` - Path parameter (recommended)
+- `/checkout?checkout_id=xxx` - Query parameter
+- `/checkout?id=xxx` - Alternative query parameter
+
+The template automatically detects and handles all these formats.
 
 ## Customization
 
@@ -154,8 +169,9 @@ The checkout flow is managed by the `useCheckoutSteps` hook. You can:
 
 4. **Configure Swell Dashboard**
    - Go to Swell Dashboard → Settings → Checkout
-   - Set checkout URL to your Vercel domain
+   - Set checkout URL to: `https://your-project.vercel.app/checkout/{checkout_id}`
    - Add domain to CORS origins in API settings
+   - The `{checkout_id}` placeholder will be automatically replaced by Swell
 
 5. **Automatic Deployments**
    - Push to main branch triggers automatic deployment

@@ -10,6 +10,7 @@ function App() {
         <Routes>
           <Route path="/" element={<CheckoutPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/:checkoutId" element={<CheckoutPage />} />
         </Routes>
       </div>
     </Router>
