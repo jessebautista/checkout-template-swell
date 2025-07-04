@@ -26,6 +26,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [cartReady, setCartReady] = useState(false)
   const [useStripeElements, setUseStripeElements] = useState(true)
+  const [currentCart, setCurrentCart] = useState<any>(null)
 
   // Ensure cart is ready before creating elements
   useEffect(() => {
@@ -46,6 +47,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           total: cart.grand_total
         })
         
+        setCurrentCart(cart)
         setCartReady(true)
       } catch (err) {
         console.error('Error checking cart:', err)
@@ -133,10 +135,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setError(null)
       console.log('Starting payment processing...')
 
-      const paymentData: PaymentInfo = {
-        method: paymentMethod,
-        gateway: paymentMethod
-      }
+      console.log('Processing payment with method:', paymentMethod)
 
       if (paymentMethod === 'stripe') {
         if (!cardData.name.trim()) {
@@ -153,11 +152,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           console.log('Tokenizing with Stripe Elements...')
           
           // Use Stripe Elements tokenization pattern from docs
+          // Tokenization automatically updates the cart billing
           await new Promise<void>((resolve, reject) => {
             swell.payment.tokenize({
               card: {
-                onSuccess: () => {
+                onSuccess: async () => {
                   console.log('Stripe Elements tokenization successful')
+                  console.log('Cart billing automatically updated by tokenization')
                   resolve()
                 },
                 onError: (err: any) => {
@@ -168,14 +169,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             })
           })
           
-          paymentData.tokenized = true
-          
         } else {
-          console.log('Using manual card tokenization...', {
-            useStripeElements,
-            elementsCreated,
-            reason: !useStripeElements ? 'Stripe Elements disabled' : 'Elements not created'
-          })
+          console.log('Using manual card tokenization...')
           
           // Validate manual form fields only when NOT using Stripe Elements
           if (!cardData.number || !cardData.exp_month || !cardData.exp_year || !cardData.cvc) {
@@ -198,27 +193,33 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           }
           
           console.log('Manual tokenization successful')
-          paymentData.tokenized = true
-        }
-        
-        // Get the updated cart to retrieve payment details
-        const updatedCart = await swell.cart.get()
-        
-        paymentData.card = {
-          name: cardData.name,
-          // These will be populated by Swell after tokenization
-          last4: updatedCart.billing?.card?.last4 || '****',
-          brand: updatedCart.billing?.card?.brand || 'card'
+          
+          // For manual tokenization, we need to update the cart with the token
+          await swell.cart.update({
+            billing: {
+              ...currentCart?.billing,
+              card: tokenResponse
+            }
+          })
+          
+          console.log('Cart updated with manual token')
         }
         
       } else {
-        // For other payment methods, just pass the basic info
-        paymentData.tokenized = false
+        // For other payment methods (PayPal, etc.), set basic billing method
+        await swell.cart.update({
+          billing: {
+            ...currentCart?.billing,
+            method: paymentMethod
+          }
+        })
+        console.log('Cart updated with payment method:', paymentMethod)
       }
 
-      console.log('Payment data prepared, submitting order...')
+      console.log('Payment tokenization complete, submitting order...')
       
-      // Submit the order directly here instead of going to review step
+      // Submit the order after successful tokenization
+      // According to docs, tokenization automatically updates cart billing
       const order = await swell.cart.submitOrder()
       
       if (!order) {
