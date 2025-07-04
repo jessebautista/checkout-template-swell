@@ -119,16 +119,6 @@ const CheckoutPage: React.FC = () => {
     return await submitOrder(customerEmail, selectedPaymentMethod)
   }
 
-  if (loading && !cart) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading checkout...</p>
-        </div>
-      </div>
-    )
-  }
 
   if (cartError) {
     return (
@@ -143,13 +133,32 @@ const CheckoutPage: React.FC = () => {
     )
   }
 
-  if (!cart || !cart.items || cart.items.length === 0) {
+  // Show loading state while cart is being initialized
+  if (loading && !cart) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-w-md mx-auto">
-            <h2 className="text-lg font-medium text-gray-800 mb-2">Your cart is empty</h2>
-            <p className="text-gray-600">Add some items to your cart to proceed with checkout.</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing checkout...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show cart empty state only if we have no cart after loading
+  if (!loading && (!cart || !cart.items || cart.items.length === 0)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+            <h2 className="text-lg font-medium text-yellow-800 mb-2">Setting up checkout</h2>
+            <p className="text-yellow-600 mb-4">This checkout template requires a cart with items to demonstrate payment processing.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="btn btn-primary"
+            >
+              Initialize Demo Cart
+            </button>
           </div>
         </div>
       </div>

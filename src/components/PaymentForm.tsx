@@ -70,7 +70,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     
     try {
       setInitializingElements(true)
-      console.log('Initializing Stripe Elements...')
+      console.log('Initializing Stripe Elements following Swell documentation...')
       setElementError(null)
       setUseManualForm(false)
       
@@ -80,30 +80,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         throw new Error('Payment form container not found')
       }
       
-      // First check if we have a valid cart - required for Swell payment initialization
+      // CRITICAL: Check if we have a valid cart with items - required by Swell docs
       const currentCart = await swell.cart.get()
-      if (!currentCart || !currentCart.id) {
-        throw new Error('Cart not available for payment initialization')
+      if (!currentCart || !currentCart.id || !currentCart.items || currentCart.items.length === 0) {
+        throw new Error('Cart must have items before initializing Stripe Elements (Swell requirement)')
       }
       
-      // Check if Stripe is configured in the store
-      try {
-        const settings = await swell.settings.get()
-        const paymentsConfig = settings?.payments
-        const stripeGateway = paymentsConfig?.methods?.find((method: any) => method.id === 'stripe')
-        
-        if (!stripeGateway || !stripeGateway.connected) {
-          throw new Error('Stripe payment gateway not configured in store settings')
-        }
-        
-        console.log('Stripe gateway found and connected:', {
-          mode: stripeGateway.mode,
-          connected: stripeGateway.connected,
-          hasTestKey: !!stripeGateway.test_publishable_key
-        })
-      } catch (settingsError) {
-        console.log('Could not verify Stripe configuration, proceeding with initialization attempt')
-      }
+      console.log('Cart validation passed:', {
+        id: currentCart.id,
+        itemCount: currentCart.items?.length,
+        total: currentCart.grand_total
+      })
       
       // Clear any existing elements first
       try {
@@ -112,70 +99,59 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         console.log('Container cleared')
       }
       
-      console.log('Creating Stripe Elements with Swell...')
+      console.log('Creating Stripe Elements exactly as per Swell documentation...')
+      
+      // Follow the exact pattern from Swell docs
       const elements = await swell.payment.createElements({
         card: {
-          elementId: 'stripe-card-element',
+          elementId: 'stripe-card-element', // No # symbol as per docs
           options: {
             style: {
               base: {
                 fontSize: '16px',
                 color: '#424770',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
                 '::placeholder': {
                   color: '#aab7c4',
                 },
               },
-              invalid: {
-                color: '#dc2626',
-                iconColor: '#dc2626'
-              }
             },
-            hidePostalCode: true
           },
           onSuccess: (result: any) => {
-            console.log('Stripe Elements mounted successfully:', result)
+            console.log('Stripe Elements success callback:', result)
             setElementError(null)
           },
           onError: (error: any) => {
-            console.error('Stripe Elements error:', error)
+            console.error('Stripe Elements error callback:', error)
             setElementError(error.message || 'Payment form error')
-          },
-          onChange: (event: any) => {
-            if (event.error) {
-              setElementError(event.error.message)
-            } else {
-              setElementError(null)
-            }
           }
         }
       })
       
       if (elements) {
         setStripeElements(elements)
-        setCardElement(elements.card || elements)
-        console.log('Stripe Elements initialized successfully')
+        setCardElement(elements) // Store the entire elements object
+        console.log('Stripe Elements created successfully')
       } else {
-        throw new Error('Swell returned empty elements object')
+        throw new Error('createElements returned null/undefined')
       }
     } catch (error: any) {
-      console.error('Failed to initialize Stripe Elements:', error)
+      console.error('Stripe Elements initialization failed:', error)
       
       // Always fall back to manual form on any Stripe initialization error
       setUseManualForm(true)
       setElementError(null) // Clear error since we're using fallback
       
-      console.log('Using manual payment form as fallback')
+      console.log('Falling back to manual payment form due to:')
+      console.log('- Error:', error.message)
       
-      // Log specific error types for debugging
       if (error.message?.includes('apiKey') || error.message?.includes('API key')) {
-        console.log('Stripe API key issue detected')
-      } else if (error.message?.includes('Cart not available')) {
-        console.log('Cart not available for Stripe initialization')
-      } else if (error.message?.includes('not configured')) {
-        console.log('Stripe gateway not properly configured')
+        console.log('- Reason: Stripe API key not configured properly')
+      } else if (error.message?.includes('items')) {
+        console.log('- Reason: Cart must have items before creating Stripe Elements')
+      } else if (error.message?.includes('Cart')) {
+        console.log('- Reason: No valid cart available')
       } else {
-        console.log('General Stripe Elements initialization error')
+        console.log('- Reason: General Stripe configuration issue')
       }
     } finally {
       setInitializingElements(false)
@@ -215,36 +191,44 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           }
           
           if (hasStripeElements) {
-            // Use Swell's proper tokenization method for Stripe Elements
-            console.log('Tokenizing payment with Swell Stripe Elements...')
+            // Use Swell's tokenization method exactly as documented
+            console.log('Tokenizing payment following Swell documentation pattern...')
             
             let tokenizeSuccess = false
+            let tokenizeError = null
             
+            // Follow the exact pattern from Swell docs
             await swell.payment.tokenize({
               card: {
                 onSuccess: (result: any) => {
-                  console.log('Payment tokenized successfully:', result)
+                  console.log('Tokenization success callback:', result)
                   setTokenized(true)
                   tokenizeSuccess = true
                   paymentData.tokenized = true
                 },
                 onError: (err: any) => {
-                  console.error('Tokenization error:', err)
+                  console.error('Tokenization error callback:', err)
+                  tokenizeError = err
                   setElementError(err.message || 'Payment tokenization failed')
-                  throw new Error(err.message || 'Payment tokenization failed')
                 }
               }
             })
             
-            // Wait a moment for tokenization to complete
-            await new Promise(resolve => setTimeout(resolve, 100))
+            // Wait for async callbacks to complete
+            await new Promise(resolve => setTimeout(resolve, 200))
             
-            if (!tokenizeSuccess && !tokenized) {
-              throw new Error('Payment tokenization did not complete successfully')
+            if (tokenizeError) {
+              throw new Error(tokenizeError.message || 'Payment tokenization failed')
             }
+            
+            if (!tokenizeSuccess) {
+              throw new Error('Payment tokenization did not complete - check card details')
+            }
+            
+            console.log('Payment tokenization completed successfully')
           } else {
             // Fallback: prepare payment data without tokenization
-            console.log('Using fallback payment processing (no Stripe Elements available)')
+            console.log('Using manual payment processing (Stripe Elements not available)')
             paymentData.tokenized = false
           }
           
