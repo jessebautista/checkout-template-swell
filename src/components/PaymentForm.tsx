@@ -26,6 +26,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [initializingElements, setInitializingElements] = useState(false)
   const cardElementRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(false)
+  const elementsInitializedRef = useRef(false) // Track if elements have been initialized
+  const swellElementsRef = useRef<any>(null) // Store Swell elements instance
 
   // Ensure cart is ready before creating elements
   useEffect(() => {
@@ -58,45 +60,59 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   // Initialize Stripe Elements when cart is ready and payment method is stripe
   useEffect(() => {
-    if (paymentMethod === 'stripe' && cartReady && !elementsCreated && !initializingElements) {
+    if (paymentMethod === 'stripe' && cartReady && !elementsInitializedRef.current && !initializingElements) {
       initializeStripeElements()
     }
-  }, [paymentMethod, cartReady, elementsCreated, initializingElements])
+  }, [paymentMethod, cartReady])
 
   // Reset elements when payment method changes away from stripe
   useEffect(() => {
     if (paymentMethod !== 'stripe') {
-      setElementsCreated(false)
-      setError(null)
-      setInitializingElements(false)
+      resetElements()
     }
   }, [paymentMethod])
 
+  const resetElements = () => {
+    setElementsCreated(false)
+    setError(null)
+    setInitializingElements(false)
+    elementsInitializedRef.current = false
+    swellElementsRef.current = null
+  }
+
   const initializeStripeElements = async () => {
-    if (initializingElements || elementsCreated) return
+    // Prevent multiple initializations
+    if (initializingElements || elementsInitializedRef.current || !mountedRef.current) {
+      console.log('Skipping initialization - already in progress or completed')
+      return
+    }
     
     try {
       setInitializingElements(true)
+      elementsInitializedRef.current = true // Mark as initialized immediately
       setError(null)
       
       console.log('Creating Stripe Elements...')
       
-      // Wait a bit for DOM to be stable
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Wait for DOM to be stable
+      await new Promise(resolve => setTimeout(resolve, 200))
       
       // Check if component is still mounted and ref is available
       if (!cardElementRef.current || !mountedRef.current) {
-        console.log('Component unmounted or ref not available, skipping initialization')
+        console.log('Component unmounted or ref not available, aborting initialization')
+        elementsInitializedRef.current = false
         return
       }
 
+      // Clear any existing content in the container
+      cardElementRef.current.innerHTML = ''
+      
       // Use a simple, static ID that Swell expects (without #)
       const elementId = 'swell-card-element'
       cardElementRef.current.id = elementId
       
       // Create Stripe Elements using official Swell API
-      // Note: Swell expects the elementId WITHOUT the # symbol
-      await swell.payment.createElements({
+      const elements = await swell.payment.createElements({
         card: {
           elementId: elementId, // No # symbol here!
           options: {
@@ -107,15 +123,20 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 '::placeholder': {
                   color: '#aab7c4',
                 },
-                fontFamily: 'Arial, sans-serif',
-                iconColor: '#666EE8',
-                lineHeight: '40px',
+                fontFamily: 'system-ui, sans-serif',
+                fontWeight: '400',
+                lineHeight: '24px',
+                backgroundColor: 'transparent',
               },
               invalid: {
                 color: '#fa755a',
                 iconColor: '#fa755a'
+              },
+              complete: {
+                color: '#32325d',
               }
-            }
+            },
+            hidePostalCode: false // Show postal code for better validation
           },
           onReady: (event) => {
             console.log('Stripe Elements ready')
@@ -141,10 +162,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }
       })
       
+      swellElementsRef.current = elements
       console.log('Stripe Elements created successfully')
       
     } catch (error: any) {
       console.error('Failed to create Stripe Elements:', error)
+      elementsInitializedRef.current = false // Reset on error
       if (mountedRef.current) {
         setError(error.message || 'Failed to load payment form')
       }
@@ -160,6 +183,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      // Clean up refs on unmount
+      elementsInitializedRef.current = false
+      swellElementsRef.current = null
     }
   }, [])
 
@@ -301,26 +327,28 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             {/* Stripe Elements Container */}
             <div 
               ref={cardElementRef}
-              className="form-input min-h-[48px] flex items-center transition-colors border-gray-300"
+              className="form-input min-h-[48px] transition-colors border-gray-300"
               style={{ 
-                padding: '12px',
+                padding: '0', // Remove padding to let Stripe Elements handle it
                 borderRadius: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                backgroundColor: '#ffffff',
+                border: '1px solid #d1d5db'
               }}
             >
               {!cartReady && (
-                <div className="flex items-center text-gray-400 text-sm">
+                <div className="flex items-center text-gray-400 text-sm p-3">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
                   Checking cart...
                 </div>
               )}
               {cartReady && (initializingElements || (!elementsCreated && !error)) && (
-                <div className="flex items-center text-gray-400 text-sm">
+                <div className="flex items-center text-gray-400 text-sm p-3">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
                   Loading secure payment form...
                 </div>
               )}
               {/* Stripe Elements will be mounted here by Swell */}
+              {/* The loading state will be replaced by Stripe Elements once ready */}
             </div>
             
             {error && (
