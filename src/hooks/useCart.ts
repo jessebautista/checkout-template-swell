@@ -67,6 +67,8 @@ export const useCart = () => {
 
   const createGuestAccount = async (email: string, firstName?: string, lastName?: string) => {
     try {
+      console.log('Attempting to create guest account with:', { email, firstName, lastName })
+      
       const guestAccount = await swell.account.create({
         email: email,
         first_name: firstName,
@@ -75,14 +77,31 @@ export const useCart = () => {
         // No password = guest account
       })
       
-      console.log('Guest account created:', guestAccount.id)
+      console.log('Guest account created successfully:', {
+        id: guestAccount.id,
+        email: guestAccount.email,
+        guest: guestAccount.guest
+      })
       return guestAccount
     } catch (error: any) {
       console.error('Failed to create guest account:', error)
-      // If it's a duplicate email error, that's ok
-      if (error.code !== 'duplicate_email') {
-        throw error
+      
+      // If account already exists, try to login/retrieve it
+      if (error.code === 'duplicate_email' || error.message?.includes('already exists')) {
+        console.log('Account already exists, attempting to retrieve...')
+        try {
+          // Try to get the current account
+          const existingAccount = await swell.account.get()
+          if (existingAccount) {
+            console.log('Retrieved existing account:', existingAccount.id)
+            return existingAccount
+          }
+        } catch (getError) {
+          console.error('Failed to retrieve existing account:', getError)
+        }
       }
+      
+      // Return null instead of throwing to allow order submission to continue
       return null
     }
   }
@@ -107,20 +126,54 @@ export const useCart = () => {
       if (emailToUse && !currentCart?.account_id) {
         console.log('Creating guest account for:', emailToUse)
         
-        await createGuestAccount(
+        const guestAccount = await createGuestAccount(
           emailToUse,
-          currentCart.billing.first_name,
-          currentCart.billing.last_name
+          currentCart?.billing?.first_name,
+          currentCart?.billing?.last_name
         )
+        
+        if (guestAccount) {
+          console.log('Account created, now associating with cart...')
+          
+          // Try to explicitly associate account with cart
+          try {
+            await swell.cart.update({
+              account_id: guestAccount.id
+            })
+            console.log('Successfully associated account with cart')
+          } catch (updateError) {
+            console.error('Failed to associate account with cart:', updateError)
+            // Continue anyway, the association might happen automatically
+          }
+        }
         
         // Refresh cart to get the account_id
         const refreshedCart = await swell.cart.get()
-        console.log('Cart after account creation:', {
+        console.log('Cart after account creation and association:', {
           id: refreshedCart?.id,
-          account_id: refreshedCart?.account_id
+          account_id: refreshedCart?.account_id,
+          account_logged_in: !!refreshedCart?.account_id
         })
         setCart(refreshedCart)
+        
+        // If still no account_id, there might be a bigger issue
+        if (!refreshedCart?.account_id) {
+          console.error('Cart still has no account_id after account creation')
+          // Let's try one more time to get the account
+          const currentAccount = await swell.account.get()
+          console.log('Current account status:', currentAccount)
+        }
       }
+      
+      console.log('Final cart check before order submission:')
+      const finalCart = await swell.cart.get()
+      console.log({
+        cart_id: finalCart?.id,
+        account_id: finalCart?.account_id,
+        has_items: finalCart?.items?.length > 0,
+        has_billing: !!finalCart?.billing,
+        has_shipping: !!finalCart?.shipping
+      })
       
       console.log('Submitting order...')
       const order = await swell.cart.submitOrder()
