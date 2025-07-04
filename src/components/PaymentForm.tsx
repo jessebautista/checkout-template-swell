@@ -23,8 +23,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cartReady, setCartReady] = useState(false)
+  const [initializingElements, setInitializingElements] = useState(false)
   const cardElementRef = useRef<HTMLDivElement>(null)
-  const elementsInstanceRef = useRef<any>(null)
+  const mountedRef = useRef(false)
 
   // Ensure cart is ready before creating elements
   useEffect(() => {
@@ -35,8 +36,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         // If no cart or cart is empty, we need to add something to make Stripe Elements work
         if (!cart || !cart.items || cart.items.length === 0) {
           console.log('Cart empty, ensuring cart has items for Stripe Elements...')
-          // You might want to handle this differently in your app
-          // For now, we'll just note that cart needs items
           setError('Cart must have items before processing payment')
           return
         }
@@ -59,54 +58,47 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
   // Initialize Stripe Elements when cart is ready and payment method is stripe
   useEffect(() => {
-    if (paymentMethod === 'stripe' && cartReady && !elementsCreated) {
+    if (paymentMethod === 'stripe' && cartReady && !elementsCreated && !initializingElements) {
       initializeStripeElements()
     }
-    
-    // Cleanup function
-    return () => {
-      cleanupStripeElements()
-    }
-  }, [paymentMethod, cartReady])
+  }, [paymentMethod, cartReady, elementsCreated, initializingElements])
 
-  // Cleanup when component unmounts or payment method changes
-  const cleanupStripeElements = () => {
-    try {
-      // Reset states
+  // Reset elements when payment method changes away from stripe
+  useEffect(() => {
+    if (paymentMethod !== 'stripe') {
       setElementsCreated(false)
       setError(null)
-      elementsInstanceRef.current = null
-      
-      // Clear the element container safely
-      if (cardElementRef.current) {
-        // Don't manipulate DOM directly, let Stripe handle it
-        // Just ensure we reset our state
-        console.log('Cleaning up Stripe Elements')
-      }
-    } catch (err) {
-      console.log('Cleanup completed')
+      setInitializingElements(false)
     }
-  }
+  }, [paymentMethod])
 
   const initializeStripeElements = async () => {
+    if (initializingElements || elementsCreated) return
+    
     try {
+      setInitializingElements(true)
       setError(null)
       
       console.log('Creating Stripe Elements...')
       
-      // Check if ref is available
-      if (!cardElementRef.current) {
-        throw new Error('Card element ref not available')
+      // Wait a bit for DOM to be stable
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Check if component is still mounted and ref is available
+      if (!cardElementRef.current || !mountedRef.current) {
+        console.log('Component unmounted or ref not available, skipping initialization')
+        return
       }
 
-      // Generate a unique ID for this instance
-      const uniqueId = `card-element-${Date.now()}`
-      cardElementRef.current.id = uniqueId
+      // Use a simple, static ID that Swell expects (without #)
+      const elementId = 'swell-card-element'
+      cardElementRef.current.id = elementId
       
       // Create Stripe Elements using official Swell API
-      const elements = await swell.payment.createElements({
+      // Note: Swell expects the elementId WITHOUT the # symbol
+      await swell.payment.createElements({
         card: {
-          elementId: `#${uniqueId}`, // Use the unique ID
+          elementId: elementId, // No # symbol here!
           options: {
             style: {
               base: {
@@ -127,32 +119,49 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           },
           onReady: (event) => {
             console.log('Stripe Elements ready')
-            setElementsCreated(true)
+            if (mountedRef.current) {
+              setElementsCreated(true)
+            }
           },
           onError: (error) => {
             console.error('Stripe Elements error:', error)
-            setError(error.message || 'Payment form error')
+            if (mountedRef.current) {
+              setError(error.message || 'Payment form error')
+            }
           },
           onChange: (event) => {
-            if (event.error) {
-              setError(event.error.message)
-            } else {
-              setError(null)
+            if (mountedRef.current) {
+              if (event.error) {
+                setError(event.error.message)
+              } else {
+                setError(null)
+              }
             }
           }
         }
       })
       
-      // Store the elements instance
-      elementsInstanceRef.current = elements
-      
       console.log('Stripe Elements created successfully')
       
     } catch (error: any) {
       console.error('Failed to create Stripe Elements:', error)
-      setError(error.message || 'Failed to load payment form')
+      if (mountedRef.current) {
+        setError(error.message || 'Failed to load payment form')
+      }
+    } finally {
+      if (mountedRef.current) {
+        setInitializingElements(false)
+      }
     }
   }
+
+  // Track component mount state
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -305,7 +314,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                   Checking cart...
                 </div>
               )}
-              {cartReady && !elementsCreated && !error && (
+              {cartReady && (initializingElements || (!elementsCreated && !error)) && (
                 <div className="flex items-center text-gray-400 text-sm">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
                   Loading secure payment form...
@@ -361,6 +370,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           disabled={
             loading || 
             processing || 
+            initializingElements ||
             (paymentMethod === 'stripe' && (!elementsCreated || !cartReady)) ||
             !!error
           }
@@ -370,6 +380,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               Processing...
+            </>
+          ) : initializingElements ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Loading...
             </>
           ) : !cartReady ? (
             'Loading...'
