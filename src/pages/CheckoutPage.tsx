@@ -17,7 +17,7 @@ const CheckoutPage: React.FC = () => {
   // Get checkout ID from URL params or query string
   const finalCheckoutId = checkoutId || searchParams.get('checkout_id') || searchParams.get('id')
   
-  const { cart, loading: cartLoading, error: cartError, updateCart, submitOrder, loadCartByCheckoutId, fetchCart } = useCart()
+  const { cart, loading, updating, submitting, error: cartError, updateCart, submitOrder, loadCartByCheckoutId, fetchCart } = useCart()
   const { steps, currentStep, goToStep, nextStep, prevStep } = useCheckoutSteps(cart)
 
   // Load cart when component mounts
@@ -29,7 +29,7 @@ const CheckoutPage: React.FC = () => {
       // Otherwise, load the current cart
       fetchCart()
     }
-  }, [finalCheckoutId, loadCartByCheckoutId, fetchCart])
+  }, [finalCheckoutId]) // Remove dependencies to prevent infinite loops
 
   const handleCustomerInfoSubmit = async (data: BillingAddress) => {
     await updateCart({ billing: data })
@@ -50,7 +50,7 @@ const CheckoutPage: React.FC = () => {
     return await submitOrder()
   }
 
-  if (cartLoading && !cart) {
+  if (loading && !cart) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -103,7 +103,7 @@ const CheckoutPage: React.FC = () => {
                   initialData={cart.billing}
                   onSubmit={handleCustomerInfoSubmit}
                   onNext={nextStep}
-                  loading={cartLoading}
+                  loading={updating}
                 />
               )}
 
@@ -114,7 +114,7 @@ const CheckoutPage: React.FC = () => {
                   onSubmit={handleShippingSubmit}
                   onNext={nextStep}
                   onPrev={prevStep}
-                  loading={cartLoading}
+                  loading={updating}
                 />
               )}
 
@@ -123,7 +123,7 @@ const CheckoutPage: React.FC = () => {
                   onSubmit={handlePaymentSubmit}
                   onNext={nextStep}
                   onPrev={prevStep}
-                  loading={cartLoading}
+                  loading={updating}
                 />
               )}
 
@@ -132,7 +132,7 @@ const CheckoutPage: React.FC = () => {
                   cart={cart}
                   onSubmit={handleOrderSubmit}
                   onPrev={prevStep}
-                  loading={cartLoading}
+                  loading={submitting}
                 />
               )}
             </div>

@@ -5,6 +5,8 @@ import { Cart } from '@/types'
 export const useCart = () => {
   const [cart, setCart] = useState<Cart | null>(null)
   const [loading, setLoading] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchCart = async () => {
@@ -49,7 +51,7 @@ export const useCart = () => {
 
   const updateCart = async (updates: Partial<Cart>) => {
     try {
-      setLoading(true)
+      setUpdating(true)
       const updatedCart = await swell.cart.update(updates)
       setCart(updatedCart)
       setError(null)
@@ -59,13 +61,13 @@ export const useCart = () => {
       console.error('Cart update error:', err)
       throw err
     } finally {
-      setLoading(false)
+      setUpdating(false)
     }
   }
 
   const submitOrder = async () => {
     try {
-      setLoading(true)
+      setSubmitting(true)
       const order = await swell.cart.submitOrder()
       setError(null)
       return order
@@ -74,7 +76,7 @@ export const useCart = () => {
       console.error('Order submit error:', err)
       throw err
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -86,6 +88,8 @@ export const useCart = () => {
   return {
     cart,
     loading,
+    updating,
+    submitting,
     error,
     fetchCart,
     loadCartByCheckoutId,
