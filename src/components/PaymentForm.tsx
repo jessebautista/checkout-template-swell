@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { PaymentInfo } from '@/types'
 import swell from '@/lib/swell'
 
@@ -27,6 +27,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [cartReady, setCartReady] = useState(false)
   const [useStripeElements, setUseStripeElements] = useState(true)
   const [currentCart, setCurrentCart] = useState<any>(null)
+  const cardElementRef = useRef<HTMLDivElement>(null)
+  const elementsInstanceRef = useRef<any>(null)
 
   // DEBUG: Log button state
   const isButtonDisabled = loading || 
@@ -90,6 +92,22 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     if (paymentMethod === 'stripe' && cartReady && useStripeElements && !elementsCreated) {
       initializeStripeElements()
     }
+    
+    // Cleanup function to prevent DOM conflicts
+    return () => {
+      if (elementsInstanceRef.current) {
+        console.log('DEBUG: Cleaning up Stripe Elements')
+        try {
+          // Clean up Stripe elements if they exist
+          elementsInstanceRef.current = null
+          if (cardElementRef.current) {
+            cardElementRef.current.innerHTML = ''
+          }
+        } catch (err) {
+          console.log('DEBUG: Error during cleanup:', err)
+        }
+      }
+    }
   }, [paymentMethod, cartReady, useStripeElements])
 
   const initializeStripeElements = async () => {
@@ -97,10 +115,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setError(null)
       console.log('DEBUG: Creating Stripe Elements...')
       
-      // Follow Swell docs exactly - use # prefix for elementId
-      await swell.payment.createElements({
+      // Make sure the element exists and is empty
+      if (!cardElementRef.current) {
+        throw new Error('Card element ref not available')
+      }
+      
+      // Clear any existing content
+      cardElementRef.current.innerHTML = ''
+      
+      // Use the element ID without # prefix as Swell requested
+      const elementId = 'card-element'
+      
+      // Create Stripe Elements using Swell API - no # prefix!
+      const elementsInstance = await swell.payment.createElements({
         card: {
-          elementId: '#card-element', // Note: Swell docs show # prefix is required
+          elementId: elementId, // No # prefix as per Swell warning
           options: {
             style: {
               base: {
@@ -139,6 +168,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           }
         }
       })
+      
+      // Store the elements instance for cleanup
+      elementsInstanceRef.current = elementsInstance
       
       console.log('DEBUG: Stripe Elements created successfully')
       
