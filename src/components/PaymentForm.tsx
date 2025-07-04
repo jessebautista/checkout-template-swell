@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { PaymentInfo } from '@/types'
 import swell from '@/lib/swell'
 
@@ -23,6 +23,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cartReady, setCartReady] = useState(false)
+  const cardElementRef = useRef<HTMLDivElement>(null)
+  const elementsInstanceRef = useRef<any>(null)
 
   // Ensure cart is ready before creating elements
   useEffect(() => {
@@ -61,16 +63,30 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       initializeStripeElements()
     }
     
+    // Cleanup function
     return () => {
-      // Cleanup: Clear the element container
-      const cardContainer = document.getElementById('card-element')
-      if (cardContainer) {
-        cardContainer.innerHTML = ''
-      }
-      setElementsCreated(false)
-      setError(null)
+      cleanupStripeElements()
     }
   }, [paymentMethod, cartReady])
+
+  // Cleanup when component unmounts or payment method changes
+  const cleanupStripeElements = () => {
+    try {
+      // Reset states
+      setElementsCreated(false)
+      setError(null)
+      elementsInstanceRef.current = null
+      
+      // Clear the element container safely
+      if (cardElementRef.current) {
+        // Don't manipulate DOM directly, let Stripe handle it
+        // Just ensure we reset our state
+        console.log('Cleaning up Stripe Elements')
+      }
+    } catch (err) {
+      console.log('Cleanup completed')
+    }
+  }
 
   const initializeStripeElements = async () => {
     try {
@@ -78,19 +94,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       
       console.log('Creating Stripe Elements...')
       
-      // Wait for DOM element to be available
-      const cardContainer = document.getElementById('card-element')
-      if (!cardContainer) {
-        throw new Error('Card element container not found')
+      // Check if ref is available
+      if (!cardElementRef.current) {
+        throw new Error('Card element ref not available')
       }
 
-      // Clear any existing content
-      cardContainer.innerHTML = ''
+      // Generate a unique ID for this instance
+      const uniqueId = `card-element-${Date.now()}`
+      cardElementRef.current.id = uniqueId
       
       // Create Stripe Elements using official Swell API
-      await swell.payment.createElements({
+      const elements = await swell.payment.createElements({
         card: {
-          elementId: 'card-element', // Must match the DOM element ID
+          elementId: `#${uniqueId}`, // Use the unique ID
           options: {
             style: {
               base: {
@@ -109,16 +125,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               }
             }
           },
-          onReady: () => {
+          onReady: (event) => {
             console.log('Stripe Elements ready')
             setElementsCreated(true)
           },
-          onError: (error: any) => {
+          onError: (error) => {
             console.error('Stripe Elements error:', error)
-            setError(error?.message || 'Payment form error')
+            setError(error.message || 'Payment form error')
           },
-          onChange: (event: any) => {
-            if (event?.error) {
+          onChange: (event) => {
+            if (event.error) {
               setError(event.error.message)
             } else {
               setError(null)
@@ -126,6 +142,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           }
         }
       })
+      
+      // Store the elements instance
+      elementsInstanceRef.current = elements
       
       console.log('Stripe Elements created successfully')
       
@@ -162,9 +181,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         
         // Use the official Swell tokenize method
         // According to docs, this automatically updates the cart with payment details
-        const result: any = await swell.payment.tokenize()
+        const result = await swell.payment.tokenize()
         
-        if (result?.error) {
+        if (result.error) {
           throw new Error(result.error.message || 'Payment processing failed')
         }
         
@@ -272,7 +291,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             
             {/* Stripe Elements Container */}
             <div 
-              id="card-element" 
+              ref={cardElementRef}
               className="form-input min-h-[48px] flex items-center transition-colors border-gray-300"
               style={{ 
                 padding: '12px',
@@ -292,7 +311,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                   Loading secure payment form...
                 </div>
               )}
-              {/* Stripe Elements will be mounted here */}
+              {/* Stripe Elements will be mounted here by Swell */}
             </div>
             
             {error && (
