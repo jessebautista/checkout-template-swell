@@ -19,6 +19,8 @@ const CheckoutPage: React.FC = () => {
   
   // Store payment method selection locally
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentInfo | null>(null)
+  // Store customer email separately (can't be updated in cart billing)
+  const [customerEmail, setCustomerEmail] = useState<string>('')
   
   const { cart, loading, updating, submitting, error: cartError, updateCart, submitOrder, loadCartByCheckoutId, fetchCart } = useCart()
   const { steps, currentStep, goToStep, nextStep, prevStep } = useCheckoutSteps(cart)
@@ -34,12 +36,18 @@ const CheckoutPage: React.FC = () => {
     }
   }, [finalCheckoutId]) // Remove dependencies to prevent infinite loops
 
+  // Set customer email when cart loads
+  useEffect(() => {
+    if (cart?.billing?.email && !customerEmail) {
+      setCustomerEmail(cart.billing.email)
+    }
+  }, [cart, customerEmail])
+
   const handleCustomerInfoSubmit = async (data: BillingAddress) => {
-    // Only send allowed billing fields, exclude restricted fields
+    // Only send allowed billing fields, exclude restricted fields like email
     const allowedBillingFields = {
       first_name: data.first_name,
       last_name: data.last_name,
-      email: data.email,
       address1: data.address1,
       address2: data.address2,
       city: data.city,
@@ -48,6 +56,9 @@ const CheckoutPage: React.FC = () => {
       country: data.country,
       phone: data.phone
     }
+    
+    // Store email separately for account creation during order submission
+    setCustomerEmail(data.email)
     
     await updateCart({ billing: allowedBillingFields })
   }
@@ -79,7 +90,6 @@ const CheckoutPage: React.FC = () => {
       billing: {
         first_name: cart?.billing?.first_name,
         last_name: cart?.billing?.last_name,
-        email: cart?.billing?.email,
         address1: cart?.billing?.address1,
         address2: cart?.billing?.address2,
         city: cart?.billing?.city,
@@ -106,7 +116,7 @@ const CheckoutPage: React.FC = () => {
   }
 
   const handleOrderSubmit = async () => {
-    return await submitOrder()
+    return await submitOrder(customerEmail)
   }
 
   if (loading && !cart) {

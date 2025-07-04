@@ -87,7 +87,7 @@ export const useCart = () => {
     }
   }
 
-  const submitOrder = async () => {
+  const submitOrder = async (customerEmail?: string) => {
     try {
       setSubmitting(true)
       
@@ -99,15 +99,16 @@ export const useCart = () => {
         items: currentCart?.items?.length,
         billing: !!currentCart?.billing,
         shipping: !!currentCart?.shipping,
-        email: currentCart?.billing?.email
+        email: customerEmail || currentCart?.billing?.email
       })
       
       // Create guest account if needed
-      if (currentCart?.billing?.email && !currentCart?.account_id) {
-        console.log('Creating guest account for:', currentCart.billing.email)
+      const emailToUse = customerEmail || currentCart?.billing?.email
+      if (emailToUse && !currentCart?.account_id) {
+        console.log('Creating guest account for:', emailToUse)
         
         await createGuestAccount(
-          currentCart.billing.email,
+          emailToUse,
           currentCart.billing.first_name,
           currentCart.billing.last_name
         )
