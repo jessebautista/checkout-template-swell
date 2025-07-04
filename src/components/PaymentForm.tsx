@@ -97,10 +97,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       setError(null)
       console.log('DEBUG: Creating Stripe Elements...')
       
-      // Create Stripe Elements using official Swell API pattern from documentation
+      // Follow Swell docs exactly - use # prefix for elementId
       await swell.payment.createElements({
         card: {
-          elementId: 'card-element',
+          elementId: '#card-element', // Note: Swell docs show # prefix is required
           options: {
             style: {
               base: {
@@ -126,6 +126,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               setError(null)
             }
           },
+          onReady: (event: any) => {
+            // This is the correct callback according to Swell docs
+            console.log('DEBUG: Stripe Elements ready:', event)
+            setElementsCreated(true)
+          },
           onError: (error: any) => {
             console.error('DEBUG: Stripe Elements error:', error)
             setError(error?.message || 'Payment form error')
@@ -136,11 +141,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       })
       
       console.log('DEBUG: Stripe Elements created successfully')
-      
-      // Since the creation was successful and we're seeing onChange events,
-      // we can safely set elementsCreated to true here
-      setElementsCreated(true)
-      console.log('DEBUG: Set elementsCreated to true')
       
     } catch (error: any) {
       console.error('DEBUG: Failed to create Stripe Elements:', error)
@@ -192,12 +192,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         if (useStripeElements && elementsCreated) {
           console.log('DEBUG: Tokenizing with Stripe Elements...')
           
-          // Use Stripe Elements tokenization pattern from docs
-          // Tokenization automatically updates the cart billing
+          // Follow Swell docs exactly for tokenization
           await new Promise<void>((resolve, reject) => {
             swell.payment.tokenize({
               card: {
-                onSuccess: async () => {
+                onSuccess: () => {
                   console.log('DEBUG: Stripe Elements tokenization successful')
                   console.log('DEBUG: Cart billing automatically updated by tokenization')
                   resolve()
@@ -364,7 +363,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 Card Details *
               </label>
               
-              {/* Stripe Elements Container */}
+              {/* Stripe Elements Container - Note: NO # in the id, but Swell expects it in elementId */}
               <div 
                 id="card-element"
                 className="form-input min-h-[48px] transition-colors border-gray-300"
