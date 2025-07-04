@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { BillingAddress, ValidationError } from '@/types'
 
 interface CustomerInfoFormProps {
@@ -28,6 +28,24 @@ const CustomerInfoForm: React.FC<CustomerInfoFormProps> = ({
   })
 
   const [errors, setErrors] = useState<ValidationError[]>([])
+
+  // Update form data when initialData changes (cart loads)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        first_name: initialData.first_name || '',
+        last_name: initialData.last_name || '',
+        email: initialData.email || '',
+        address1: initialData.address1 || '',
+        address2: initialData.address2 || '',
+        city: initialData.city || '',
+        state: initialData.state || '',
+        zip: initialData.zip || '',
+        country: initialData.country || 'US',
+        phone: initialData.phone || ''
+      })
+    }
+  }, [initialData])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target

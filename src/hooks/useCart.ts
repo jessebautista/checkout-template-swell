@@ -93,9 +93,19 @@ export const useCart = () => {
       
       // Get current cart to check account status
       const currentCart = await swell.cart.get()
+      console.log('Current cart before order submission:', {
+        id: currentCart?.id,
+        account_id: currentCart?.account_id,
+        items: currentCart?.items?.length,
+        billing: !!currentCart?.billing,
+        shipping: !!currentCart?.shipping,
+        email: currentCart?.billing?.email
+      })
       
       // Create guest account if needed
       if (currentCart?.billing?.email && !currentCart?.account_id) {
+        console.log('Creating guest account for:', currentCart.billing.email)
+        
         await createGuestAccount(
           currentCart.billing.email,
           currentCart.billing.first_name,
@@ -104,9 +114,14 @@ export const useCart = () => {
         
         // Refresh cart to get the account_id
         const refreshedCart = await swell.cart.get()
+        console.log('Cart after account creation:', {
+          id: refreshedCart?.id,
+          account_id: refreshedCart?.account_id
+        })
         setCart(refreshedCart)
       }
       
+      console.log('Submitting order...')
       const order = await swell.cart.submitOrder()
       setError(null)
       

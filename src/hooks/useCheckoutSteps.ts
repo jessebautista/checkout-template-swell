@@ -47,10 +47,11 @@ export const useCheckoutSteps = (cart: Cart | null) => {
 
   useEffect(() => {
     if (cart) {
-      const hasCustomerInfo = cart.billing?.first_name && cart.billing?.last_name
+      const hasCustomerInfo = cart.billing?.first_name && cart.billing?.last_name && cart.billing?.email
       const hasShipping = cart.shipping?.address1
-      const hasPayment = cart.payment?.method
+      const hasPayment = cart.billing?.method
       
+      // Update completed steps
       setSteps(steps => steps.map(step => ({
         ...step,
         completed: 
@@ -59,8 +60,24 @@ export const useCheckoutSteps = (cart: Cart | null) => {
           (step.id === 'payment' && hasPayment) ||
           step.completed
       })))
+
+      // Auto-advance to the appropriate step for existing data
+      // Only do this on initial load (when current step is still 'customer')
+      if (currentStep === 'customer') {
+        if (hasCustomerInfo && hasShipping && hasPayment) {
+          // All data present, go to review
+          goToStep('review')
+        } else if (hasCustomerInfo && hasShipping) {
+          // Customer and shipping done, go to payment
+          goToStep('payment')
+        } else if (hasCustomerInfo) {
+          // Customer info done, go to shipping
+          goToStep('shipping')
+        }
+        // Otherwise stay on customer step
+      }
     }
-  }, [cart])
+  }, [cart, currentStep])
 
   return {
     steps,

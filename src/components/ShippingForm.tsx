@@ -32,6 +32,25 @@ const ShippingForm: React.FC<ShippingFormProps> = ({
     same_as_billing: sameAsBilling
   })
 
+  // Update form data when initialData changes (cart loads)
+  useEffect(() => {
+    if (initialData && !sameAsBilling) {
+      setFormData({
+        first_name: initialData.first_name || '',
+        last_name: initialData.last_name || '',
+        address1: initialData.address1 || '',
+        address2: initialData.address2 || '',
+        city: initialData.city || '',
+        state: initialData.state || '',
+        zip: initialData.zip || '',
+        country: initialData.country || 'US',
+        phone: initialData.phone || '',
+        same_as_billing: initialData.same_as_billing || false
+      })
+      setSameAsBilling(initialData.same_as_billing || false)
+    }
+  }, [initialData])
+
   useEffect(() => {
     if (sameAsBilling && billingAddress) {
       // Only copy allowed fields from billing address
@@ -47,7 +66,8 @@ const ShippingForm: React.FC<ShippingFormProps> = ({
         phone: billingAddress.phone || '',
         same_as_billing: true
       })
-    } else if (!sameAsBilling) {
+    } else if (!sameAsBilling && !initialData) {
+      // Only reset if we don't have initial data to preserve
       setFormData(prev => ({
         first_name: prev.first_name,
         last_name: prev.last_name,
@@ -61,7 +81,7 @@ const ShippingForm: React.FC<ShippingFormProps> = ({
         same_as_billing: false
       }))
     }
-  }, [sameAsBilling, billingAddress])
+  }, [sameAsBilling, billingAddress, initialData])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
