@@ -28,20 +28,27 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   const [tokenizing, setTokenizing] = useState(false)
   const [tokenized, setTokenized] = useState(false)
   const [elementError, setElementError] = useState<string | null>(null)
+  const [initializingElements, setInitializingElements] = useState(false)
+  const [useManualForm, setUseManualForm] = useState(false)
 
   // Initialize Stripe Elements when component mounts
   useEffect(() => {
     if (paymentMethod === 'stripe') {
-      // Add a small delay to ensure DOM is ready
+      // Add a delay to ensure DOM and cart are ready
       const timer = setTimeout(() => {
         initializeStripeElements()
-      }, 100)
+      }, 300)
       
       return () => {
         clearTimeout(timer)
         // Cleanup any existing elements to prevent DOM issues
+        setCardElement(null)
+        setStripeElements(null)
+        setTokenized(false)
+        setElementError(null)
+        
         const cardContainer = document.getElementById('stripe-card-element')
-        if (cardContainer && stripeElements) {
+        if (cardContainer) {
           try {
             cardContainer.innerHTML = ''
           } catch (err) {
@@ -49,28 +56,66 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           }
         }
       }
+    } else {
+      // Reset stripe states when switching away from stripe
+      setCardElement(null)
+      setStripeElements(null)
+      setTokenized(false)
+      setElementError(null)
     }
   }, [paymentMethod])
 
   const initializeStripeElements = async () => {
+    if (initializingElements) return // Prevent multiple simultaneous initializations
+    
     try {
+      setInitializingElements(true)
       console.log('Initializing Stripe Elements...')
       setElementError(null)
+      setUseManualForm(false)
       
-      // Clear any existing elements first
+      // Wait for DOM to be ready
       const cardContainer = document.getElementById('stripe-card-element')
-      if (cardContainer) {
-        // Clear container safely
-        try {
-          cardContainer.innerHTML = ''
-        } catch (err) {
-          console.log('Container cleared')
-        }
+      if (!cardContainer) {
+        throw new Error('Payment form container not found')
       }
       
+      // First check if we have a valid cart - required for Swell payment initialization
+      const currentCart = await swell.cart.get()
+      if (!currentCart || !currentCart.id) {
+        throw new Error('Cart not available for payment initialization')
+      }
+      
+      // Check if Stripe is configured in the store
+      try {
+        const settings = await swell.settings.get()
+        const paymentsConfig = settings?.payments
+        const stripeGateway = paymentsConfig?.methods?.find((method: any) => method.id === 'stripe')
+        
+        if (!stripeGateway || !stripeGateway.connected) {
+          throw new Error('Stripe payment gateway not configured in store settings')
+        }
+        
+        console.log('Stripe gateway found and connected:', {
+          mode: stripeGateway.mode,
+          connected: stripeGateway.connected,
+          hasTestKey: !!stripeGateway.test_publishable_key
+        })
+      } catch (settingsError) {
+        console.log('Could not verify Stripe configuration, proceeding with initialization attempt')
+      }
+      
+      // Clear any existing elements first
+      try {
+        cardContainer.innerHTML = ''
+      } catch (err) {
+        console.log('Container cleared')
+      }
+      
+      console.log('Creating Stripe Elements with Swell...')
       const elements = await swell.payment.createElements({
         card: {
-          elementId: 'stripe-card-element', // Remove the # symbol
+          elementId: 'stripe-card-element',
           options: {
             style: {
               base: {
@@ -111,18 +156,29 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setCardElement(elements.card || elements)
         console.log('Stripe Elements initialized successfully')
       } else {
-        throw new Error('Failed to create Stripe Elements')
+        throw new Error('Swell returned empty elements object')
       }
     } catch (error: any) {
       console.error('Failed to initialize Stripe Elements:', error)
       
-      // Check if this is a Stripe configuration issue
-      if (error.message && error.message.includes('apiKey')) {
-        setElementError('Payment system configuration issue. Please check your Swell store settings.')
-        console.error('Stripe API key not configured in Swell store')
+      // Always fall back to manual form on any Stripe initialization error
+      setUseManualForm(true)
+      setElementError(null) // Clear error since we're using fallback
+      
+      console.log('Using manual payment form as fallback')
+      
+      // Log specific error types for debugging
+      if (error.message?.includes('apiKey') || error.message?.includes('API key')) {
+        console.log('Stripe API key issue detected')
+      } else if (error.message?.includes('Cart not available')) {
+        console.log('Cart not available for Stripe initialization')
+      } else if (error.message?.includes('not configured')) {
+        console.log('Stripe gateway not properly configured')
       } else {
-        setElementError(error.message || 'Failed to load payment form')
+        console.log('General Stripe Elements initialization error')
       }
+    } finally {
+      setInitializingElements(false)
     }
   }
 
@@ -145,11 +201,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setElementError(null)
         
         try {
-          // Check if Stripe Elements are available and ready
-          const hasStripeElements = stripeElements && cardElement && !elementError?.includes('configuration')
+          // Check if we're using Stripe Elements or manual form
+          const hasStripeElements = stripeElements && cardElement && !useManualForm
           
-          if (!hasStripeElements && (!cardData.number || !cardData.exp_month || !cardData.exp_year || !cardData.cvc)) {
-            throw new Error('Please fill in all payment details.')
+          if (!hasStripeElements) {
+            // Validate manual form fields
+            if (!cardData.number || !cardData.exp_month || !cardData.exp_year || !cardData.cvc || !cardData.name) {
+              throw new Error('Please fill in all payment details.')
+            }
+            console.log('Using manual payment form submission')
+          } else {
+            console.log('Using Stripe Elements submission')
           }
           
           if (hasStripeElements) {
@@ -307,20 +369,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               Card Details *
             </label>
             
-            {/* Show Stripe Elements container or fallback */}
-            {!elementError || !elementError.includes('configuration') ? (
+            {/* Show Stripe Elements container or manual fallback */}
+            {!useManualForm ? (
               <div 
                 id="stripe-card-element" 
-                className={`form-input min-h-[48px] flex items-center transition-colors ${
-                  elementError ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
+                className="form-input min-h-[48px] flex items-center transition-colors border-gray-300"
                 style={{ 
                   padding: '12px',
                   borderRadius: '12px',
-                  backgroundColor: elementError ? 'rgba(254, 242, 242, 0.5)' : 'rgba(255, 255, 255, 0.5)'
+                  backgroundColor: 'rgba(255, 255, 255, 0.5)'
                 }}
               >
-                {!cardElement && !elementError && (
+                {(initializingElements || (!cardElement && !elementError)) && (
                   <div className="flex items-center text-gray-400 text-sm">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
                     Loading payment form...
@@ -329,11 +389,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 {/* Stripe Elements will be mounted here */}
               </div>
             ) : (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                <p className="text-sm text-yellow-800 mb-3">
-                  Stripe Elements unavailable. Using fallback payment form.
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-sm text-blue-800 mb-3 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Using manual payment form
                 </p>
-                {/* Show fallback form immediately when Stripe fails */}
+                {/* Show manual form */}
                 <div className="space-y-3">
                   <input
                     type="text"
@@ -341,7 +404,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                     value={cardData.number}
                     onChange={handleCardChange}
                     placeholder="4242 4242 4242 4242"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                   <div className="grid grid-cols-3 gap-2">
@@ -352,7 +415,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                       onChange={handleCardChange}
                       placeholder="12"
                       maxLength={2}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
                     <input
@@ -362,7 +425,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                       onChange={handleCardChange}
                       placeholder="25"
                       maxLength={2}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
                     <input
@@ -372,7 +435,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                       onChange={handleCardChange}
                       placeholder="123"
                       maxLength={4}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                     />
                   </div>
@@ -380,7 +443,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               </div>
             )}
             
-            {elementError && !elementError.includes('configuration') && (
+            {elementError && !useManualForm && (
               <p className="text-xs text-red-600 mt-1 flex items-center">
                 <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -389,9 +452,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
               </p>
             )}
             
-            {!elementError && cardElement && (
+            {!elementError && !useManualForm && cardElement && (
               <p className="text-xs text-gray-500 mt-1">
                 Use test card: 4242 4242 4242 4242
+              </p>
+            )}
+            
+            {!useManualForm && !elementError && !cardElement && (
+              <p className="text-xs text-gray-500 mt-1">
+                Initializing secure payment form...
+              </p>
+            )}
+            
+            {useManualForm && (
+              <p className="text-xs text-gray-500 mt-1">
+                Use test card: 4242 4242 4242 4242 | Exp: 12/25 | CVC: 123
               </p>
             )}
             
@@ -507,13 +582,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         </button>
         <button
           type="submit"
-          disabled={loading || tokenizing || (paymentMethod === 'stripe' && !tokenized && !elementError)}
+          disabled={loading || tokenizing || initializingElements || (paymentMethod === 'stripe' && !useManualForm && !tokenized && !cardElement)}
           className="btn btn-primary"
         >
           {tokenizing ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               Processing...
+            </>
+          ) : initializingElements ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Loading...
             </>
           ) : loading ? (
             'Saving...'
